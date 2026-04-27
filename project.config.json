@@ -1,0 +1,14 @@
+{
+  "appid": "wx57596c2ecec099ef",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "dist-weapp",
+  "projectname": "family-menu-miniapp",
+  "description": "Family ordering mini-program",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "enhance": true
+  }
+}

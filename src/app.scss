@@ -1,0 +1,89 @@
+﻿$bg-page: #f9f0df;
+$bg-card: #fffdf8;
+$bg-header: linear-gradient(180deg, #f9b16d 0%, #f6a85f 100%);
+$text-main: #212121;
+$shadow: 0 10rpx 24rpx rgba(188, 132, 72, 0.18);
+
+page {
+  background: $bg-page;
+  color: $text-main;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+view,
+text {
+  box-sizing: border-box;
+}
+
+.page-shell {
+  min-height: 100vh;
+  background: $bg-page;
+}
+
+.page-header {
+  padding: 26rpx 24rpx 22rpx;
+  background: $bg-header;
+  color: #fff;
+}
+
+.page-header--compact {
+  padding-bottom: 18rpx;
+}
+
+.page-title {
+  display: block;
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  opacity: 0.95;
+}
+
+.page-body {
+  padding: 18rpx 16rpx 28rpx;
+}
+
+.card {
+  background: $bg-card;
+  border: 1rpx solid rgba(255, 255, 255, 0.72);
+  border-radius: 24rpx;
+  box-shadow: $shadow;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24rpx;
+  height: 60rpx;
+  border-radius: 999rpx;
+  background: #fff;
+  color: #4c5564;
+  font-size: 24rpx;
+  box-shadow: 0 4rpx 10rpx rgba(180, 145, 103, 0.16);
+}
+
+.pill--active {
+  background: linear-gradient(180deg, #f8b36d 0%, #f5a053 100%);
+  color: #fff;
+}
+
+.accent-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 118rpx;
+  height: 56rpx;
+  padding: 0 22rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, #f8b36d 0%, #f5a053 100%);
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 600;
+  box-shadow: 0 8rpx 18rpx rgba(245, 164, 88, 0.28);
+}
