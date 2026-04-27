@@ -1,7 +1,5 @@
-import { loginWithCode } from '../utils/auth'
 import { api } from '../utils/request'
 import {
-  clearToken,
   getUser,
   setUser,
   type AuthUser,
@@ -30,43 +28,52 @@ export interface LoginParams {
   avatar?: string
 }
 
-function syncCachedUser(data: AuthCheckResult): void {
+function syncCachedUser(data: Partial<UserProfile>): UserProfile {
   const cachedUser = getUser()
   const nextUser: AuthUser = {
     ...cachedUser,
-    id: String(data.userId),
-    openid: data.openid,
-    role: data.role
+    id: String(data.id || cachedUser?.id || 'default-user'),
+    openid: data.openid || cachedUser?.openid || 'default-openid',
+    nickname: data.nickname || cachedUser?.nickname,
+    avatar_url: data.avatar_url || cachedUser?.avatar_url,
+    phone: data.phone || cachedUser?.phone,
+    role: data.role || cachedUser?.role || 'chef'
   }
 
   setUser(nextUser)
+  return nextUser as UserProfile
 }
 
 export async function wxLogin(params: LoginParams) {
-  return loginWithCode<UserProfile>(params.code, {
-    userInfo: {
+  return Promise.resolve({
+    user: syncCachedUser({
       nickname: params.nickname,
-      avatar_url: params.avatar
-    }
+      avatar_url: params.avatar,
+      role: 'chef'
+    })
   })
 }
 
 export function checkAuth() {
+  const user = getUser()
+  return Promise.resolve({
+    userId: user?.id || 'default-user',
+    openid: user?.openid || 'default-openid',
+    role: user?.role || 'chef'
+  })
+}
+
+export async function logout() {
+  return Promise.resolve()
+}
+
+export function getUserProfile() {
   return api
-    .get<{ code: number; data: AuthCheckResult; message: string }>('/auth/check')
+    .get<{ code: number; data: UserProfile; message: string }>('/user/profile')
     .then((res) => {
       syncCachedUser(res.data)
       return res.data
     })
-}
-
-export async function logout() {
-  await api.post<void>('/auth/logout')
-  clearToken()
-}
-
-export function getUserProfile() {
-  return api.get<UserProfile>('/user/profile')
 }
 
 export function updateUserProfile(data: Partial<UserProfile>) {

@@ -1,8 +1,6 @@
 import Taro from '@tarojs/taro'
 
-import { ensureAuthorized } from '../utils/auth'
 import { buildApiUrl } from '../utils/api'
-import { clearToken } from '../utils/session'
 
 interface ApiResponse<T> {
   code: number
@@ -45,16 +43,11 @@ function getUploadErrorMessage(data: unknown, fallback: string): string {
   return fallback
 }
 
-export async function uploadImage(filePath: string, allowRetry = true): Promise<UploadedImage> {
-  const token = await ensureAuthorized(false)
-
+export async function uploadImage(filePath: string): Promise<UploadedImage> {
   const res = await Taro.uploadFile({
     url: buildApiUrl('/upload/image'),
     filePath,
-    name: 'file',
-    header: {
-      Authorization: `Bearer ${token}`
-    }
+    name: 'file'
   })
 
   const parsed = parseUploadResponse(res.data)
@@ -63,11 +56,5 @@ export async function uploadImage(filePath: string, allowRetry = true): Promise<
     return parsed.data
   }
 
-  if (res.statusCode === 401 && allowRetry) {
-    clearToken()
-    await ensureAuthorized(true)
-    return uploadImage(filePath, false)
-  }
-
-  throw new Error(getUploadErrorMessage(parsed, '图片上传失败'))
+  throw new Error(getUploadErrorMessage(parsed, '鍥剧墖涓婁紶澶辫触'))
 }

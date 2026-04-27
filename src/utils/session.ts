@@ -1,6 +1,5 @@
 import Taro from '@tarojs/taro'
 
-const TOKEN_KEY = 'auth_token'
 const USER_KEY = 'auth_user'
 
 export type UserRole = 'chef' | 'customer'
@@ -14,16 +13,15 @@ export interface AuthUser {
   role: UserRole
 }
 
-export function getToken(): string | null {
-  return Taro.getStorageSync(TOKEN_KEY) || null
-}
-
-export function setToken(token: string): void {
-  Taro.setStorageSync(TOKEN_KEY, token)
+const DEFAULT_USER: AuthUser = {
+  id: 'default-user',
+  openid: 'default-openid',
+  nickname: 'Default User',
+  role: 'chef'
 }
 
 export function getUser(): AuthUser | null {
-  return Taro.getStorageSync(USER_KEY) || null
+  return Taro.getStorageSync(USER_KEY) || DEFAULT_USER
 }
 
 export function setUser(user: AuthUser): void {
@@ -31,10 +29,9 @@ export function setUser(user: AuthUser): void {
 }
 
 export function getUserRole(): UserRole | null {
-  return getUser()?.role || null
+  return getUser()?.role || DEFAULT_USER.role
 }
 
 export function clearToken(): void {
-  Taro.removeStorageSync(TOKEN_KEY)
   Taro.removeStorageSync(USER_KEY)
 }

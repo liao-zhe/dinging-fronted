@@ -1,8 +1,6 @@
 import Taro from '@tarojs/taro'
 
-import { ensureAuthorized } from './auth'
 import { buildApiUrl } from './api'
-import { clearToken, getToken } from './session'
 
 interface RequestOptions {
   url: string
@@ -33,10 +31,6 @@ function isHandledError(error: unknown): error is HandledError {
   return error instanceof Error && Boolean((error as HandledError).handled)
 }
 
-function isAuthRequest(url: string): boolean {
-  return url.startsWith('/auth/')
-}
-
 function getErrorMessage(data: unknown, fallback: string): string {
   if (
     data &&
@@ -50,17 +44,8 @@ function getErrorMessage(data: unknown, fallback: string): string {
   return fallback
 }
 
-export async function request<T = any>(
-  options: RequestOptions,
-  allowAuthRetry = true
-): Promise<T> {
+export async function request<T = any>(options: RequestOptions): Promise<T> {
   const { url, method = 'GET', data, header = {} } = options
-  const token = getToken()
-  const requestHeader: Record<string, string> = { ...header }
-
-  if (token) {
-    requestHeader.Authorization = `Bearer ${token}`
-  }
 
   try {
     const res = await Taro.request({
@@ -69,7 +54,7 @@ export async function request<T = any>(
       data,
       header: {
         'Content-Type': 'application/json',
-        ...requestHeader
+        ...header
       }
     })
 
@@ -77,25 +62,7 @@ export async function request<T = any>(
       return res.data as T
     }
 
-    if (res.statusCode === 401) {
-      clearToken()
-
-      if (allowAuthRetry && !isAuthRequest(url)) {
-        try {
-          await ensureAuthorized(true)
-          return request<T>(options, false)
-        } catch (authError) {
-          console.error('Auth recovery failed:', authError)
-          Taro.showToast({ title: '身份校验已失效', icon: 'none' })
-          throw createHandledError('AUTH_REQUIRED', 401, res.data)
-        }
-      }
-
-      Taro.showToast({ title: '身份校验失败', icon: 'none' })
-      throw createHandledError('AUTH_REQUIRED', 401, res.data)
-    }
-
-    const errorMsg = getErrorMessage(res.data, '请求失败')
+    const errorMsg = getErrorMessage(res.data, '璇锋眰澶辫触')
 
     if (res.statusCode !== 403) {
       Taro.showToast({ title: errorMsg, icon: 'none' })
@@ -104,7 +71,7 @@ export async function request<T = any>(
     throw createHandledError(errorMsg, res.statusCode, res.data)
   } catch (error) {
     if (!isHandledError(error)) {
-      Taro.showToast({ title: '网络异常', icon: 'none' })
+      Taro.showToast({ title: '缃戠粶寮傚父', icon: 'none' })
     }
 
     throw error
