@@ -1,7 +1,7 @@
 import { Image, Input, Text, Textarea, View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import type { CSSProperties } from 'react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import { GlobalAssistant } from '../../components/global-assistant'
 import { PageShell } from '../../components/page-shell'
@@ -14,8 +14,8 @@ import {
   type ManagedDish
 } from '../../services/managed-dish'
 import { uploadImage } from '../../services/upload'
-import { checkAuth } from '../../services/user'
-import { getUserRole, type UserRole } from '../../utils/session'
+import { checkAuth, logout } from '../../services/user'
+import { getUser, hasToken } from '../../utils/session'
 import { getCompatibleSystemInfoSync } from '../../utils/system-info'
 
 import './index.scss'
@@ -54,6 +54,7 @@ function getModalMaskStyle(): CSSProperties {
   try {
     const menuButton = Taro.getMenuButtonBoundingClientRect()
     const gap = Math.max(menuButton.top - statusBarHeight, 8)
+
     return {
       paddingTop: `${menuButton.bottom + gap + 16}px`,
       paddingBottom: `${bottomInset + 20}px`
@@ -81,13 +82,13 @@ export default function ProfilePage() {
   const [form, setForm] = useState<DishFormState>(() => createEmptyForm())
   const [categories, setCategories] = useState<Category[]>([])
   const [dishList, setDishList] = useState<ManagedDish[]>([])
-  const [role, setRole] = useState<UserRole | null>(() => getUserRole())
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const skipNextDidShowSyncRef = useRef(false)
 
+  const user = getUser()
   const modalMaskStyle = useMemo(() => getModalMaskStyle(), [])
   const previewImageUrl = form.localImagePath || form.remoteImageUrl
-  const isChef = role === 'chef'
   const modalTitle = modalMode === 'edit' ? '编辑菜品' : '添加首页菜品'
   const modalSubmitText = submitting
     ? '提交中...'
@@ -134,28 +135,18 @@ export default function ProfilePage() {
     })
   }
 
-  const syncRoleAndPage = async () => {
-    setLoading(true)
+  const syncPage = async (showPageLoading = true) => {
+    if (showPageLoading) {
+      setLoading(true)
+    }
 
     try {
-      const authInfo = await checkAuth()
-      setRole(authInfo.role)
-
-      if (authInfo.role !== 'chef') {
-        setShowModal(false)
-        setCategories([])
-        setDishList([])
-        return
-      }
-
+      await checkAuth()
       await loadManagedDishes()
     } catch (error) {
-      console.error('同步权限信息失败，使用本地角色继续加载页面:', error)
-      const cachedRole = getUserRole()
-      setRole(cachedRole)
+      console.error('sync profile failed:', error)
 
-      if (cachedRole !== 'chef') {
-        setShowModal(false)
+      if (!hasToken()) {
         setCategories([])
         setDishList([])
         return
@@ -164,24 +155,27 @@ export default function ProfilePage() {
       try {
         await loadManagedDishes()
       } catch (loadError) {
-        console.error('加载菜品管理数据失败:', loadError)
+        console.error('load dishes failed:', loadError)
         Taro.showToast({ title: '加载失败', icon: 'none' })
       }
     } finally {
-      setLoading(false)
+      if (showPageLoading) {
+        setLoading(false)
+      }
     }
   }
 
   useDidShow(() => {
-    void syncRoleAndPage()
+    const shouldShowPageLoading = !showModal && !skipNextDidShowSyncRef.current
+
+    if (skipNextDidShowSyncRef.current) {
+      skipNextDidShowSyncRef.current = false
+    }
+
+    void syncPage(shouldShowPageLoading)
   })
 
   const openCreateModal = () => {
-    if (!isChef) {
-      Taro.showToast({ title: '您没有菜品管理权限', icon: 'none' })
-      return
-    }
-
     if (!categories.length) {
       Taro.showToast({ title: '暂无可用分类', icon: 'none' })
       return
@@ -192,11 +186,6 @@ export default function ProfilePage() {
   }
 
   const openEditModal = (dish: ManagedDish) => {
-    if (!isChef) {
-      Taro.showToast({ title: '您没有菜品管理权限', icon: 'none' })
-      return
-    }
-
     setModalMode('edit')
     setEditingDishId(dish.id)
     setForm({
@@ -211,6 +200,7 @@ export default function ProfilePage() {
 
   const handleChooseImage = async () => {
     try {
+      skipNextDidShowSyncRef.current = true
       const res = await Taro.chooseImage({
         count: 1,
         sizeType: ['compressed'],
@@ -264,11 +254,6 @@ export default function ProfilePage() {
   }
 
   const handleSubmitDish = async () => {
-    if (!isChef) {
-      Taro.showToast({ title: '您没有菜品管理权限', icon: 'none' })
-      return
-    }
-
     if (submitting) {
       return
     }
@@ -320,7 +305,7 @@ export default function ProfilePage() {
         icon: 'success'
       })
     } catch (error) {
-      console.error('提交菜品失败:', error)
+      console.error('submit dish failed:', error)
       Taro.showToast({
         title: getErrorMessage(
           error,
@@ -335,11 +320,6 @@ export default function ProfilePage() {
   }
 
   const handleDeleteDish = async (id: string) => {
-    if (!isChef) {
-      Taro.showToast({ title: '您没有菜品管理权限', icon: 'none' })
-      return
-    }
-
     const res = await Taro.showModal({
       title: '删除菜品',
       content: '删除后首页点单页也会同步移除，确认删除吗？',
@@ -356,7 +336,7 @@ export default function ProfilePage() {
       await loadManagedDishes()
       Taro.showToast({ title: '删除成功', icon: 'success' })
     } catch (error) {
-      console.error('删除菜品失败:', error)
+      console.error('delete dish failed:', error)
       Taro.showToast({
         title: getErrorMessage(error, '删除失败'),
         icon: 'none'
@@ -366,9 +346,32 @@ export default function ProfilePage() {
     }
   }
 
+  const handleLogout = async () => {
+    const res = await Taro.showModal({
+      title: '退出登录',
+      content: '退出后需要重新登录，确认退出吗？',
+      confirmColor: '#d86c5b'
+    })
+
+    if (!res.confirm) {
+      return
+    }
+
+    try {
+      Taro.showLoading({ title: '退出中...', mask: true })
+      await logout()
+      await Taro.reLaunch({ url: '/pages/login/index' })
+    } catch (error) {
+      console.error('logout failed:', error)
+      Taro.showToast({ title: '退出失败', icon: 'none' })
+    } finally {
+      Taro.hideLoading()
+    }
+  }
+
   if (loading) {
     return (
-      <PageShell title='我的' subtitle='管理首页展示菜品'>
+      <PageShell title='我的' subtitle='账号信息与菜品管理'>
         <View className='loading-container'>
           <Text className='loading-text'>加载中...</Text>
         </View>
@@ -376,26 +379,22 @@ export default function ProfilePage() {
     )
   }
 
-  if (!isChef) {
-    return (
-      <>
-        <PageShell title='我的' subtitle='管理首页展示菜品'>
-          <View className='wish-empty card'>
-            <Text className='wish-empty__heart'>限</Text>
-            <Text className='wish-empty__title'>当前账号没有管理权限</Text>
-            <Text className='wish-empty__desc'>
-              只有主厨账号可以新增、编辑和删除菜品
-            </Text>
-          </View>
-        </PageShell>
-        <GlobalAssistant />
-      </>
-    )
-  }
-
   return (
     <>
-      <PageShell title='我的' subtitle='管理首页展示菜品'>
+      <PageShell title='我的' subtitle='账号信息与菜品管理'>
+        <View className='profile-role'>
+          <Text className='profile-role__label'>当前身份</Text>
+          <Text
+            className={`profile-role__tag ${
+              user?.role === 'chef'
+                ? 'profile-role__tag--chef'
+                : 'profile-role__tag--customer'
+            }`}
+          >
+            {user?.role === 'chef' ? '管理员' : '普通用户'}
+          </Text>
+        </View>
+
         <View className='wish-entry card'>
           <View className='wish-entry__left'>
             <View className='wish-entry__icon'>菜</View>
@@ -418,7 +417,7 @@ export default function ProfilePage() {
             <Text className='wish-empty__heart'>菜</Text>
             <Text className='wish-empty__title'>还没有添加展示菜品</Text>
             <Text className='wish-empty__desc'>
-              新增后首页点单页就能看到它们
+              添加后首页点单页就能看到它们
             </Text>
           </View>
         ) : (
@@ -481,6 +480,12 @@ export default function ProfilePage() {
             ))}
           </View>
         )}
+
+        <View className='profile-logout-wrap'>
+          <Text className='profile-logout' onClick={() => void handleLogout()}>
+            退出登录
+          </Text>
+        </View>
 
         {showModal ? (
           <View

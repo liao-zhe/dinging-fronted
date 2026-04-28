@@ -1,6 +1,7 @@
 import Taro from '@tarojs/taro'
 
 import { buildApiUrl } from '../utils/api'
+import { getToken } from '../utils/session'
 
 interface ApiResponse<T> {
   code: number
@@ -44,10 +45,16 @@ function getUploadErrorMessage(data: unknown, fallback: string): string {
 }
 
 export async function uploadImage(filePath: string): Promise<UploadedImage> {
+  const token = getToken()
   const res = await Taro.uploadFile({
     url: buildApiUrl('/upload/image'),
     filePath,
-    name: 'file'
+    name: 'file',
+    header: token
+      ? {
+          Authorization: `Bearer ${token}`
+        }
+      : undefined
   })
 
   const parsed = parseUploadResponse(res.data)

@@ -1,6 +1,7 @@
 import Taro from '@tarojs/taro'
 
 import { buildApiUrl } from './api'
+import { clearSession, getToken } from './session'
 
 interface RequestOptions {
   url: string
@@ -14,6 +15,8 @@ type HandledError = Error & {
   statusCode?: number
   data?: unknown
 }
+
+let isRedirectingToLogin = false
 
 function createHandledError(
   message: string,
@@ -44,8 +47,32 @@ function getErrorMessage(data: unknown, fallback: string): string {
   return fallback
 }
 
+function getCurrentRoute(): string {
+  const pages = Taro.getCurrentPages()
+  const currentPage = pages[pages.length - 1]
+  return currentPage?.route ? `/${currentPage.route}` : '/pages/home/index'
+}
+
+function redirectToLogin() {
+  const currentRoute = getCurrentRoute()
+
+  if (currentRoute === '/pages/login/index' || isRedirectingToLogin) {
+    return
+  }
+
+  isRedirectingToLogin = true
+  const redirect = encodeURIComponent(currentRoute)
+
+  void Taro.navigateTo({
+    url: `/pages/login/index?redirect=${redirect}`
+  }).finally(() => {
+    isRedirectingToLogin = false
+  })
+}
+
 export async function request<T = any>(options: RequestOptions): Promise<T> {
   const { url, method = 'GET', data, header = {} } = options
+  const token = getToken()
 
   try {
     const res = await Taro.request({
@@ -54,6 +81,7 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
       data,
       header: {
         'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...header
       }
     })
@@ -62,16 +90,19 @@ export async function request<T = any>(options: RequestOptions): Promise<T> {
       return res.data as T
     }
 
-    const errorMsg = getErrorMessage(res.data, '璇锋眰澶辫触')
+    const errorMsg = getErrorMessage(res.data, '请求失败')
 
-    if (res.statusCode !== 403) {
+    if (res.statusCode === 401) {
+      clearSession()
+      redirectToLogin()
+    } else if (res.statusCode !== 403) {
       Taro.showToast({ title: errorMsg, icon: 'none' })
     }
 
     throw createHandledError(errorMsg, res.statusCode, res.data)
   } catch (error) {
     if (!isHandledError(error)) {
-      Taro.showToast({ title: '缃戠粶寮傚父', icon: 'none' })
+      Taro.showToast({ title: '网络异常，请稍后重试', icon: 'none' })
     }
 
     throw error

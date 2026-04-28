@@ -13,7 +13,7 @@ import {
   updateOrderStatus
 } from '../../services/order'
 import { checkAuth } from '../../services/user'
-import { getUserRole, type UserRole } from '../../utils/session'
+import { getUserRole, hasToken, type UserRole } from '../../utils/session'
 
 import './index.scss'
 
@@ -84,6 +84,11 @@ export default function OrdersPage() {
       console.error('同步权限信息失败，使用本地角色继续加载订单:', error)
       const cachedRole = getUserRole()
       setRole(cachedRole)
+
+      if (!hasToken() || !cachedRole) {
+        setOrders([])
+        return
+      }
 
       try {
         await loadOrders(cachedRole)
