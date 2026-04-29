@@ -56,7 +56,7 @@ export default function LoginPage() {
 
       try {
         const profile = await Taro.getUserProfile({
-          desc: '用于完善家庭私厨账号信息'
+          desc: '用于完善哲哲私厨账号信息'
         })
         nickname = profile.userInfo?.nickName || ''
         avatar = profile.userInfo?.avatarUrl || ''
@@ -126,7 +126,7 @@ export default function LoginPage() {
         <View className='login-header__content'>
           <View className='login-logo'>
             <View className='login-logo__icon'>🍳</View>
-            <Text className='login-logo__text'>家庭私厨</Text>
+            <Text className='login-logo__text'>哲哲私厨</Text>
           </View>
           <Text className='login-header__slogan'>每一餐，都是家的味道</Text>
         </View>

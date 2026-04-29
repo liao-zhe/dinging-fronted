@@ -166,7 +166,7 @@ export const orders: Order[] = [
 ]
 
 export const familyHeader = {
-  title: '家庭私厨',
+  title: '哲哲私厨',
   subtitle: '精选食材 · 匠心烹制'
 }
 

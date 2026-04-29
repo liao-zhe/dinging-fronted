@@ -491,10 +491,7 @@ export default function ProfilePage() {
             <View className='profile-entry__left'>
               <View className='profile-entry__icon profile-entry__icon--lock'>密</View>
               <View>
-                <Text className='profile-entry__title'>修改登录密码</Text>
-                <Text className='profile-entry__desc'>
-                  主厨账号密码已改为数据库校验，修改成功后需要重新登录
-                </Text>
+                <Text className='profile-entry__title'>修改密码</Text>
               </View>
             </View>
             <Text className='accent-btn' onClick={openPasswordModal}>

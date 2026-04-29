@@ -244,7 +244,7 @@ export function GlobalAssistant() {
                 <View className='assistant-message-group'>
                   <View className='assistant-message'>
                     <Text className='assistant-message__text'>
-                      您好！我是您的家庭私厨助手，有什么可以帮您的吗？您可以问我关于菜品、营养搭配、烹饪建议等问题哦~
+                      您好！我是您的哲哲私厨助手，有什么可以帮您的吗？您可以问我关于菜品、营养搭配、烹饪建议等问题哦~
                     </Text>
                   </View>
                   <Text className='assistant-message__time'>14:45</Text>
