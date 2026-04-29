@@ -161,7 +161,10 @@ export default function HomePage() {
       }, 350)
     } catch (error) {
       Taro.hideLoading()
-      Taro.showToast({ title: '下单失败', icon: 'none' })
+      Taro.showToast({
+        title: error instanceof Error ? error.message : '下单失败',
+        icon: 'none'
+      })
       setSubmittingOrder(false)
     }
   }

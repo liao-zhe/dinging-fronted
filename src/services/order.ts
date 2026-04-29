@@ -46,6 +46,22 @@ export interface Order {
 }
 
 export function createOrder(params: CreateOrderParams) {
+  if (!params.date) {
+    return Promise.reject(new Error('请选择用餐日期'))
+  }
+
+  if (!params.meal) {
+    return Promise.reject(new Error('请选择餐期'))
+  }
+
+  if (!params.peopleCount || params.peopleCount < 1) {
+    return Promise.reject(new Error('人数至少为 1'))
+  }
+
+  if (!params.items.length) {
+    return Promise.reject(new Error('请先选择菜品'))
+  }
+
   const backendParams: BackendCreateOrderParams = {
     order_date: params.date,
     meal_type: params.meal,
