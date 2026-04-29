@@ -37,6 +37,11 @@ export interface ChefLoginParams {
   password: string
 }
 
+export interface ChangePasswordParams {
+  currentPassword: string
+  newPassword: string
+}
+
 interface LoginResponse {
   accessToken: string
   tokenType: string
@@ -127,6 +132,13 @@ export async function logout() {
   } finally {
     clearSession()
   }
+}
+
+export function changePassword(params: ChangePasswordParams) {
+  return api.post<{ code: number; data: null; message: string }>(
+    '/auth/change-password',
+    params
+  )
 }
 
 export function getUserProfile() {

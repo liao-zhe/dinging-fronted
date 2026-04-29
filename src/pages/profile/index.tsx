@@ -14,7 +14,7 @@ import {
   type ManagedDish
 } from '../../services/managed-dish'
 import { uploadImage } from '../../services/upload'
-import { checkAuth, logout } from '../../services/user'
+import { changePassword, checkAuth, logout } from '../../services/user'
 import { getUser, hasToken } from '../../utils/session'
 import { getCompatibleSystemInfoSync } from '../../utils/system-info'
 
@@ -30,7 +30,14 @@ interface DishFormState {
   remoteImageUrl: string
 }
 
+interface PasswordFormState {
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024
+const MIN_PASSWORD_LENGTH = 6
 
 function createEmptyForm(categoryId = ''): DishFormState {
   return {
@@ -39,6 +46,14 @@ function createEmptyForm(categoryId = ''): DishFormState {
     categoryId,
     localImagePath: '',
     remoteImageUrl: ''
+  }
+}
+
+function createEmptyPasswordForm(): PasswordFormState {
+  return {
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   }
 }
 
@@ -77,16 +92,22 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export default function ProfilePage() {
   const [showModal, setShowModal] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [modalMode, setModalMode] = useState<ModalMode>('create')
   const [editingDishId, setEditingDishId] = useState('')
   const [form, setForm] = useState<DishFormState>(() => createEmptyForm())
+  const [passwordForm, setPasswordForm] = useState<PasswordFormState>(() =>
+    createEmptyPasswordForm()
+  )
   const [categories, setCategories] = useState<Category[]>([])
   const [dishList, setDishList] = useState<ManagedDish[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
   const skipNextDidShowSyncRef = useRef(false)
 
   const user = getUser()
+  const isChef = user?.role === 'chef'
   const modalMaskStyle = useMemo(() => getModalMaskStyle(), [])
   const previewImageUrl = form.localImagePath || form.remoteImageUrl
   const modalTitle = modalMode === 'edit' ? '编辑菜品' : '添加首页菜品'
@@ -100,8 +121,14 @@ export default function ProfilePage() {
       ? '修改后会同步更新首页点单页展示的菜品信息'
       : '选择分类并填写菜名和描述，添加后会同步展示到首页'
 
+  const passwordSubmitText = changingPassword ? '处理中...' : '确认修改'
+
   const updateForm = (patch: Partial<DishFormState>) => {
     setForm((prev) => ({ ...prev, ...patch }))
+  }
+
+  const updatePasswordForm = (patch: Partial<PasswordFormState>) => {
+    setPasswordForm((prev) => ({ ...prev, ...patch }))
   }
 
   const resetForm = (categoryId = categories[0]?.id || '') => {
@@ -110,9 +137,18 @@ export default function ProfilePage() {
     setModalMode('create')
   }
 
+  const resetPasswordForm = () => {
+    setPasswordForm(createEmptyPasswordForm())
+  }
+
   const closeModal = () => {
     resetForm(categories[0]?.id || '')
     setShowModal(false)
+  }
+
+  const closePasswordModal = () => {
+    resetPasswordForm()
+    setShowPasswordModal(false)
   }
 
   const loadManagedDishes = async () => {
@@ -166,7 +202,8 @@ export default function ProfilePage() {
   }
 
   useDidShow(() => {
-    const shouldShowPageLoading = !showModal && !skipNextDidShowSyncRef.current
+    const shouldShowPageLoading =
+      !showModal && !showPasswordModal && !skipNextDidShowSyncRef.current
 
     if (skipNextDidShowSyncRef.current) {
       skipNextDidShowSyncRef.current = false
@@ -183,6 +220,11 @@ export default function ProfilePage() {
 
     resetForm(categories[0]?.id || '')
     setShowModal(true)
+  }
+
+  const openPasswordModal = () => {
+    resetPasswordForm()
+    setShowPasswordModal(true)
   }
 
   const openEditModal = (dish: ManagedDish) => {
@@ -369,6 +411,55 @@ export default function ProfilePage() {
     }
   }
 
+  const handleChangePassword = async () => {
+    if (changingPassword) {
+      return
+    }
+
+    const currentPassword = passwordForm.currentPassword.trim()
+    const newPassword = passwordForm.newPassword.trim()
+    const confirmPassword = passwordForm.confirmPassword.trim()
+
+    if (!currentPassword) {
+      Taro.showToast({ title: '请输入当前密码', icon: 'none' })
+      return
+    }
+
+    if (!newPassword) {
+      Taro.showToast({ title: '请输入新密码', icon: 'none' })
+      return
+    }
+
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      Taro.showToast({ title: '新密码至少 6 位', icon: 'none' })
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      Taro.showToast({ title: '两次输入的新密码不一致', icon: 'none' })
+      return
+    }
+
+    try {
+      setChangingPassword(true)
+      Taro.showLoading({ title: '修改密码中...', mask: true })
+      await changePassword({ currentPassword, newPassword })
+      closePasswordModal()
+      Taro.showToast({ title: '密码修改成功，请重新登录', icon: 'success' })
+      await logout()
+      await Taro.reLaunch({ url: '/pages/login/index' })
+    } catch (error) {
+      console.error('change password failed:', error)
+      Taro.showToast({
+        title: getErrorMessage(error, '修改密码失败'),
+        icon: 'none'
+      })
+    } finally {
+      setChangingPassword(false)
+      Taro.hideLoading()
+    }
+  }
+
   if (loading) {
     return (
       <PageShell title='我的' subtitle='账号信息与菜品管理'>
@@ -394,6 +485,23 @@ export default function ProfilePage() {
             {user?.role === 'chef' ? '管理员' : '普通用户'}
           </Text>
         </View>
+
+        {isChef ? (
+          <View className='profile-entry card'>
+            <View className='profile-entry__left'>
+              <View className='profile-entry__icon profile-entry__icon--lock'>密</View>
+              <View>
+                <Text className='profile-entry__title'>修改登录密码</Text>
+                <Text className='profile-entry__desc'>
+                  主厨账号密码已改为数据库校验，修改成功后需要重新登录
+                </Text>
+              </View>
+            </View>
+            <Text className='accent-btn' onClick={openPasswordModal}>
+              去修改
+            </Text>
+          </View>
+        ) : null}
 
         <View className='wish-entry card'>
           <View className='wish-entry__left'>
@@ -602,6 +710,69 @@ export default function ProfilePage() {
                 }}
               >
                 {modalSubmitText}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {showPasswordModal ? (
+          <View
+            className='wish-modal-mask'
+            style={modalMaskStyle}
+            onClick={closePasswordModal}
+          >
+            <View className='wish-modal card' onClick={(e) => e.stopPropagation()}>
+              <View className='wish-modal__head'>
+                <Text className='wish-modal__title'>修改主厨密码</Text>
+                <Text className='wish-modal__close' onClick={closePasswordModal}>
+                  脳
+                </Text>
+              </View>
+
+              <Text className='wish-modal__desc'>
+                请输入当前密码，并设置新的主厨登录密码。修改成功后会重新回到登录页。
+              </Text>
+
+              <Text className='wish-modal__label'>当前密码 *</Text>
+              <Input
+                className='wish-modal__input'
+                password
+                placeholder='请输入当前密码'
+                placeholderClass='wish-modal__placeholder'
+                placeholderStyle='color:#7b8495;'
+                value={passwordForm.currentPassword}
+                onInput={(e) => updatePasswordForm({ currentPassword: e.detail.value })}
+              />
+
+              <Text className='wish-modal__label'>新密码 *</Text>
+              <Input
+                className='wish-modal__input'
+                password
+                placeholder='至少 6 位'
+                placeholderClass='wish-modal__placeholder'
+                placeholderStyle='color:#7b8495;'
+                value={passwordForm.newPassword}
+                onInput={(e) => updatePasswordForm({ newPassword: e.detail.value })}
+              />
+
+              <Text className='wish-modal__label'>确认新密码 *</Text>
+              <Input
+                className='wish-modal__input'
+                password
+                placeholder='再次输入新密码'
+                placeholderClass='wish-modal__placeholder'
+                placeholderStyle='color:#7b8495;'
+                value={passwordForm.confirmPassword}
+                onInput={(e) => updatePasswordForm({ confirmPassword: e.detail.value })}
+              />
+
+              <Text
+                className='wish-modal__submit'
+                onClick={() => {
+                  void handleChangePassword()
+                }}
+              >
+                {passwordSubmitText}
               </Text>
             </View>
           </View>
