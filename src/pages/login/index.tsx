@@ -1,4 +1,4 @@
-import { Button, Input, Text, View } from '@tarojs/components'
+import { Button, Image, Input, Text, View } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { useState } from 'react'
 
@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [submittingChef, setSubmittingChef] = useState(false)
   const [chefUsername, setChefUsername] = useState('')
   const [chefPassword, setChefPassword] = useState('')
+  const [activeTab, setActiveTab] = useState<'wechat' | 'chef'>('wechat')
 
   const finishLogin = async () => {
     Taro.showToast({
@@ -115,65 +116,138 @@ export default function LoginPage() {
 
   return (
     <View className='login-page'>
-      <View className='login-hero'>
-        <Text className='login-hero__eyebrow'>家庭私厨</Text>
-        <Text className='login-hero__title'>先确认身份，再开始点单或管理订单</Text>
-        <Text className='login-hero__desc'>
-          普通用户继续使用微信快捷登录。主厨通过独立账号密码进入管理能力，权限边界更清晰。
-        </Text>
-      </View>
-
-      <View className='login-layout'>
-        <View className='login-panel login-panel--guest'>
-          <Text className='login-panel__kicker'>普通用户</Text>
-          <Text className='login-panel__title'>微信快捷登录</Text>
-          <Text className='login-panel__desc'>
-            登录后可下单、查看我的订单、使用个人中心等普通用户能力。
-          </Text>
-          <Button
-            className='login-panel__button login-panel__button--primary'
-            loading={submittingWechat}
-            onClick={handleWechatLogin}
-          >
-            {submittingWechat ? '登录中...' : '微信快捷登录'}
-          </Button>
+      {/* 顶部装饰背景 */}
+      <View className='login-header'>
+        <View className='login-header__decoration'>
+          <View className='decoration-circle decoration-circle--1' />
+          <View className='decoration-circle decoration-circle--2' />
+          <View className='decoration-circle decoration-circle--3' />
         </View>
-
-        <View className='login-panel login-panel--chef'>
-          <Text className='login-panel__kicker'>主厨入口</Text>
-          <Text className='login-panel__title'>账号密码登录</Text>
-          <Text className='login-panel__desc'>
-            仅主厨账号可获得订单确认能力。菜品管理页对所有已登录用户开放。
-          </Text>
-          <View className='login-form'>
-            <Input
-              className='login-input'
-              placeholder='主厨账号'
-              value={chefUsername}
-              onInput={(e) => setChefUsername(e.detail.value)}
-            />
-            <Input
-              className='login-input'
-              password
-              placeholder='主厨密码'
-              value={chefPassword}
-              onInput={(e) => setChefPassword(e.detail.value)}
-            />
+        <View className='login-header__content'>
+          <View className='login-logo'>
+            <View className='login-logo__icon'>🍳</View>
+            <Text className='login-logo__text'>家庭私厨</Text>
           </View>
-          <Button
-            className='login-panel__button login-panel__button--secondary'
-            loading={submittingChef}
-            onClick={handleChefLogin}
-          >
-            {submittingChef ? '登录中...' : '使用主厨账号登录'}
-          </Button>
+          <Text className='login-header__slogan'>每一餐，都是家的味道</Text>
         </View>
       </View>
 
-      <View className='login-note'>
-        <Text className='login-note__text'>
-          微信登录固定返回普通用户角色，主厨权限仅通过主厨账号密码入口获取。
-        </Text>
+      {/* 登录卡片 */}
+      <View className='login-card'>
+        {/* Tab切换 */}
+        <View className='login-tabs'>
+          <View
+            className={`login-tab ${activeTab === 'wechat' ? 'login-tab--active' : ''}`}
+            onClick={() => setActiveTab('wechat')}
+          >
+            <Text className='login-tab__icon'>💬</Text>
+            <Text className='login-tab__text'>微信登录</Text>
+          </View>
+          <View
+            className={`login-tab ${activeTab === 'chef' ? 'login-tab--active' : ''}`}
+            onClick={() => setActiveTab('chef')}
+          >
+            <Text className='login-tab__icon'>👨‍🍳</Text>
+            <Text className='login-tab__text'>主厨入口</Text>
+          </View>
+        </View>
+
+        {/* 微信登录 */}
+        {activeTab === 'wechat' && (
+          <View className='login-content'>
+            <View className='login-welcome'>
+              <Text className='login-welcome__title'>欢迎回来</Text>
+              <Text className='login-welcome__desc'>一键登录，开启美食之旅</Text>
+            </View>
+
+            <Button
+              className='login-btn login-btn--wechat'
+              loading={submittingWechat}
+              onClick={handleWechatLogin}
+            >
+              <View className='login-btn__inner'>
+                <Text className='login-btn__icon'>💬</Text>
+                <Text className='login-btn__text'>
+                  {submittingWechat ? '登录中...' : '微信快捷登录'}
+                </Text>
+              </View>
+            </Button>
+
+            <View className='login-features'>
+              <View className='login-feature'>
+                <Text className='login-feature__icon'>🍽️</Text>
+                <Text className='login-feature__text'>浏览菜品</Text>
+              </View>
+              <View className='login-feature'>
+                <Text className='login-feature__icon'>📝</Text>
+                <Text className='login-feature__text'>在线下单</Text>
+              </View>
+              <View className='login-feature'>
+                <Text className='login-feature__icon'>📦</Text>
+                <Text className='login-feature__text'>订单管理</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* 主厨登录 */}
+        {activeTab === 'chef' && (
+          <View className='login-content'>
+            <View className='login-welcome'>
+              <Text className='login-welcome__title'>主厨登录</Text>
+              <Text className='login-welcome__desc'>使用专属账号管理菜品和订单</Text>
+            </View>
+
+            <View className='login-form'>
+              <View className='login-input-wrapper'>
+                <Text className='login-input-icon'>👤</Text>
+                <Input
+                  className='login-input'
+                  placeholder='请输入主厨账号'
+                  value={chefUsername}
+                  onInput={(e) => setChefUsername(e.detail.value)}
+                />
+              </View>
+              <View className='login-input-wrapper'>
+                <Text className='login-input-icon'>🔒</Text>
+                <Input
+                  className='login-input'
+                  password
+                  placeholder='请输入密码'
+                  value={chefPassword}
+                  onInput={(e) => setChefPassword(e.detail.value)}
+                />
+              </View>
+            </View>
+
+            <Button
+              className='login-btn login-btn--chef'
+              loading={submittingChef}
+              onClick={handleChefLogin}
+            >
+              <View className='login-btn__inner'>
+                <Text className='login-btn__icon'>👨‍🍳</Text>
+                <Text className='login-btn__text'>
+                  {submittingChef ? '登录中...' : '登录'}
+                </Text>
+              </View>
+            </Button>
+
+            <View className='login-tip'>
+              <Text className='login-tip__text'>主厨可管理菜品、确认订单、查看数据统计</Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* 底部装饰 */}
+      <View className='login-footer'>
+        <View className='login-footer__decoration'>
+          <View className='decoration-dot' />
+          <View className='decoration-dot' />
+          <View className='decoration-dot' />
+        </View>
+        <Text className='login-footer__text'>用心烹饪，温暖每一个家</Text>
       </View>
     </View>
   )
