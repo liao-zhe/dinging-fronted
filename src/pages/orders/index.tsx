@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { GlobalAssistant } from '../../components/global-assistant'
 import { PageShell } from '../../components/page-shell'
 import {
+  cancelOrder,
   deleteOrder,
   getAllOrders,
   getOrderList,
@@ -33,7 +34,8 @@ const statusClassMap: Record<OrderStatus, string> = {
   cancelled: 'order-card__status--cancelled'
 }
 
-const deletableOrderStatuses: OrderStatus[] = ['cancelled', 'completed']
+const deletableOrderStatuses: OrderStatus[] = ['confirmed']
+const cancellableOrderStatuses: OrderStatus[] = ['pending', 'preparing', 'completed', 'cancelled']
 
 type RequestError = Error & {
   statusCode?: number
@@ -65,6 +67,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [role, setRole] = useState<UserRole | null>(() => getUserRole())
   const [deletingOrderId, setDeletingOrderId] = useState('')
+  const [cancellingOrderId, setCancellingOrderId] = useState('')
   const [confirmingOrderId, setConfirmingOrderId] = useState('')
 
   const loadOrders = async (currentRole: UserRole | null) => {
@@ -108,7 +111,11 @@ export default function OrdersPage() {
   const canConfirmOrder = role === 'chef'
 
   const canDeleteOrder = (status: OrderStatus) => {
-    return deletableOrderStatuses.includes(status)
+    return role !== 'chef' && deletableOrderStatuses.includes(status)
+  }
+
+  const canCancelOrder = (status: OrderStatus) => {
+    return cancellableOrderStatuses.includes(status)
   }
 
   const canShowConfirmAction = (order: Order) => {
@@ -141,6 +148,32 @@ export default function OrdersPage() {
       Taro.showToast({ title: '删除失败', icon: 'none' })
     } finally {
       setDeletingOrderId('')
+      Taro.hideLoading()
+    }
+  }
+
+  const handleCancelOrder = async (order: Order) => {
+    const modalRes = await Taro.showModal({
+      title: '取消订单',
+      content: '确认取消该订单吗？取消后将通知主厨。',
+      confirmColor: '#e26d5a'
+    })
+
+    if (!modalRes.confirm) {
+      return
+    }
+
+    try {
+      setCancellingOrderId(order.id)
+      Taro.showLoading({ title: '取消中...', mask: true })
+      await cancelOrder(order.id)
+      await loadOrders(role)
+      Taro.showToast({ title: '取消成功', icon: 'success' })
+    } catch (error) {
+      console.error('取消订单失败:', error)
+      Taro.showToast({ title: '取消失败', icon: 'none' })
+    } finally {
+      setCancellingOrderId('')
       Taro.hideLoading()
     }
   }
@@ -236,7 +269,7 @@ export default function OrdersPage() {
                   下单时间：{formatTime(order.created_at)}
                 </Text>
 
-                {(canShowConfirmAction(order) || canDeleteOrder(order.status)) && (
+                {(canShowConfirmAction(order) || canDeleteOrder(order.status) || canCancelOrder(order.status)) && (
                   <View className='order-card__actions'>
                     {canShowConfirmAction(order) ? (
                       <Text
@@ -261,6 +294,21 @@ export default function OrdersPage() {
                         }}
                       >
                         {deletingOrderId === order.id ? '删除中...' : '删除订单'}
+                      </Text>
+                    ) : null}
+
+                    {canCancelOrder(order.status) ? (
+                      <Text
+                        className={`order-card__action order-card__action--danger ${cancellingOrderId === order.id ? 'order-card__action--disabled' : ''}`}
+                        onClick={() => {
+                          if (cancellingOrderId === order.id) {
+                            return
+                          }
+
+                          void handleCancelOrder(order)
+                        }}
+                      >
+                        {cancellingOrderId === order.id ? '取消中...' : '取消订单'}
                       </Text>
                     ) : null}
                   </View>

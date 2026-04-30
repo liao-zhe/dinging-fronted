@@ -21,12 +21,12 @@
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/preset-react": "^7.26.3",
-    "babel-preset-taro": "^4.2.0",
     "@tarojs/cli": "^4.2.0",
     "@tarojs/plugin-platform-weapp": "^4.2.0",
     "@tarojs/webpack5-runner": "^4.2.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "babel-preset-taro": "^4.2.0",
     "eslint": "^8.57.1",
     "eslint-config-taro": "^4.2.0",
     "sass": "^1.89.0",
