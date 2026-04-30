@@ -35,7 +35,7 @@ const statusClassMap: Record<OrderStatus, string> = {
 }
 
 const deletableOrderStatuses: OrderStatus[] = ['confirmed']
-const cancellableOrderStatuses: OrderStatus[] = ['pending', 'preparing', 'completed', 'cancelled']
+const cancellableOrderStatuses: OrderStatus[] = ['pending', 'preparing', 'completed']
 
 type RequestError = Error & {
   statusCode?: number
