@@ -3,6 +3,7 @@
     'pages/login/index',
     'pages/home/index',
     'pages/orders/index',
+    'pages/ai-chat/index',
     'pages/profile/index',
     'pages/cart/index'
   ],
@@ -28,6 +29,12 @@
         text: '订单',
         iconPath: 'assets/icons/tab-orders.png',
         selectedIconPath: 'assets/icons/tab-orders-active.png'
+      },
+      {
+        pagePath: 'pages/ai-chat/index',
+        text: 'AI助手',
+        iconPath: 'assets/icons/tab-ai.png',
+        selectedIconPath: 'assets/icons/tab-ai-active.png'
       },
       {
         pagePath: 'pages/profile/index',
