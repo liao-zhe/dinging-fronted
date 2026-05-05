@@ -1,0 +1,103 @@
+.session-list {
+  background: #fff;
+  border-radius: 16rpx;
+  margin: 16rpx 24rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24rpx;
+    border-bottom: 1rpx solid #f0f0f0;
+  }
+
+  &__title {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #333;
+  }
+
+  &__new-btn {
+    padding: 12rpx 24rpx;
+    background: #ff6b35;
+    border-radius: 24rpx;
+  }
+
+  &__new-btn-text {
+    font-size: 24rpx;
+    color: #fff;
+  }
+
+  &__scroll {
+    max-height: 400rpx;
+  }
+
+  &__empty {
+    padding: 48rpx 24rpx;
+    text-align: center;
+  }
+
+  &__empty-text {
+    font-size: 26rpx;
+    color: #999;
+  }
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+  transition: background 0.2s;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &--active {
+    background: #fff8f6;
+  }
+
+  &__content {
+    flex: 1;
+    overflow: hidden;
+  }
+
+  &__title {
+    font-size: 26rpx;
+    color: #333;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    margin-top: 8rpx;
+  }
+
+  &__count {
+    font-size: 22rpx;
+    color: #999;
+    margin-right: 16rpx;
+  }
+
+  &__time {
+    font-size: 22rpx;
+    color: #999;
+  }
+
+  &__delete {
+    padding: 16rpx;
+    margin-left: 16rpx;
+  }
+
+  &__delete-icon {
+    font-size: 32rpx;
+    color: #ccc;
+  }
+}

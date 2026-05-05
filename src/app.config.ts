@@ -1,16 +1,17 @@
-﻿export default {
+export default {
   pages: [
     'pages/login/index',
     'pages/home/index',
     'pages/orders/index',
     'pages/ai-chat/index',
     'pages/profile/index',
-    'pages/cart/index'
+    'pages/cart/index',
+    'pages/preferences/index',
   ],
   window: {
     navigationStyle: 'custom',
     backgroundTextStyle: 'light',
-    backgroundColor: '#f9f0df'
+    backgroundColor: '#f9f0df',
   },
   tabBar: {
     color: '#697385',
@@ -22,26 +23,26 @@
         pagePath: 'pages/home/index',
         text: '点单',
         iconPath: 'assets/icons/tab-home.png',
-        selectedIconPath: 'assets/icons/tab-home-active.png'
+        selectedIconPath: 'assets/icons/tab-home-active.png',
       },
       {
         pagePath: 'pages/orders/index',
         text: '订单',
         iconPath: 'assets/icons/tab-orders.png',
-        selectedIconPath: 'assets/icons/tab-orders-active.png'
+        selectedIconPath: 'assets/icons/tab-orders-active.png',
       },
       {
         pagePath: 'pages/ai-chat/index',
         text: 'AI助手',
         iconPath: 'assets/icons/tab-ai.png',
-        selectedIconPath: 'assets/icons/tab-ai-active.png'
+        selectedIconPath: 'assets/icons/tab-ai-active.png',
       },
       {
         pagePath: 'pages/profile/index',
         text: '我的',
         iconPath: 'assets/icons/tab-profile.png',
-        selectedIconPath: 'assets/icons/tab-profile-active.png'
-      }
-    ]
-  }
-}
+        selectedIconPath: 'assets/icons/tab-profile-active.png',
+      },
+    ],
+  },
+};

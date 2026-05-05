@@ -1,0 +1,106 @@
+.dish-cards {
+  margin: 16rpx 0;
+  padding: 0 24rpx;
+
+  &__header {
+    margin-bottom: 16rpx;
+  }
+
+  &__title {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #333;
+  }
+
+  &__scroll {
+    white-space: nowrap;
+  }
+}
+
+.dish-card {
+  display: inline-block;
+  width: 280rpx;
+  margin-right: 20rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+
+  &:last-child {
+    margin-right: 0;
+  }
+
+  &__image {
+    width: 100%;
+    height: 180rpx;
+    display: block;
+
+    &--placeholder {
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  &__placeholder-text {
+    font-size: 24rpx;
+    color: #999;
+  }
+
+  &__info {
+    padding: 16rpx;
+    white-space: normal;
+  }
+
+  &__name {
+    font-size: 26rpx;
+    font-weight: 600;
+    color: #333;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__category {
+    font-size: 20rpx;
+    color: #ff6b35;
+    margin-top: 8rpx;
+    display: block;
+  }
+
+  &__desc {
+    font-size: 22rpx;
+    color: #666;
+    margin-top: 8rpx;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12rpx;
+  }
+
+  &__price {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #ff6b35;
+  }
+
+  &__tag {
+    padding: 4rpx 12rpx;
+    background: #fff3f0;
+    border-radius: 8rpx;
+  }
+
+  &__tag-text {
+    font-size: 20rpx;
+    color: #ff6b35;
+  }
+}
