@@ -37,12 +37,24 @@ export default function PreferencesPage() {
     }
   };
 
+  const closePreferences = () => {
+    Taro.navigateBack({
+      delta: 1,
+      fail: () => {
+        Taro.switchTab({ url: '/pages/ai-chat/index' });
+      },
+    });
+  };
+
   const handleSave = async () => {
+    if (isSaving) return;
+
     setIsSaving(true);
     try {
       const res = await updatePreferences(preferences);
       if (res.code === 200) {
         Taro.showToast({ title: '保存成功', icon: 'success' });
+        setTimeout(closePreferences, 700);
       } else {
         Taro.showToast({ title: '保存失败', icon: 'none' });
       }
@@ -143,6 +155,10 @@ export default function PreferencesPage() {
         <Text className='preferences__save-btn-text'>
           {isSaving ? '保存中...' : '保存偏好'}
         </Text>
+      </View>
+
+      <View className='preferences__close-btn' onClick={closePreferences}>
+        <Text className='preferences__close-btn-text'>关闭</Text>
       </View>
 
       <View className='preferences__tip'>

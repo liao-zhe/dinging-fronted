@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
+import type { CSSProperties } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Taro from '@tarojs/taro';
 import { View, Input, Text, ScrollView } from '@tarojs/components';
 import { buildApiUrl } from '../../utils/api';
@@ -12,6 +13,7 @@ import {
 } from '../../services/ai';
 import DishCard from '../../components/DishCard';
 import SessionList from '../../components/SessionList';
+import { getCompatibleSystemInfoSync } from '../../utils/system-info';
 import './index.scss';
 
 interface Message {
@@ -60,6 +62,30 @@ const parseSseBuffer = (
   return rest;
 };
 
+function getChatHeaderStyle(): CSSProperties {
+  const systemInfo = getCompatibleSystemInfoSync();
+  const statusBarHeight = systemInfo.statusBarHeight || 20;
+
+  try {
+    const menuButton = Taro.getMenuButtonBoundingClientRect();
+    const gap = Math.max(menuButton.top - statusBarHeight, 8);
+    const topInset = statusBarHeight + gap;
+    const capsuleReserve = Math.max(menuButton.width + gap + 16, 112);
+
+    return {
+      paddingTop: `${topInset}px`,
+      paddingRight: `${capsuleReserve}px`,
+      minHeight: `${menuButton.bottom + gap}px`,
+    };
+  } catch {
+    return {
+      paddingTop: `${statusBarHeight + 10}px`,
+      paddingRight: '112px',
+      minHeight: `${statusBarHeight + 58}px`,
+    };
+  }
+}
+
 export default function AiChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -70,6 +96,7 @@ export default function AiChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const scrollViewRef = useRef<HTMLDivElement>(null);
   const recorderManager = useRef<any>(null);
+  const headerStyle = useMemo(() => getChatHeaderStyle(), []);
 
   // 滚动到底部
   const scrollToBottom = () => {
@@ -392,21 +419,33 @@ export default function AiChatPage() {
   return (
     <View className='ai-chat'>
       {/* 顶部操作栏 */}
-      <View className='ai-chat__toolbar'>
-        <View className='ai-chat__toolbar-btn' onClick={toggleSessions}>
-          <Text className='ai-chat__toolbar-icon'>📋</Text>
-          <Text className='ai-chat__toolbar-text'>历史</Text>
+      <View className='ai-chat__header' style={headerStyle}>
+        <View className='ai-chat__header-main'>
+          <View className='ai-chat__avatar'>厨</View>
+          <View className='ai-chat__title-wrap'>
+            <Text className='ai-chat__title'>AI 小厨</Text>
+            <Text className='ai-chat__subtitle'>
+              {isLoading ? '正在搭配菜单' : '懂口味，也懂今天吃什么'}
+            </Text>
+          </View>
         </View>
-        <View className='ai-chat__toolbar-btn' onClick={handleNewSession}>
-          <Text className='ai-chat__toolbar-icon'>✏️</Text>
-          <Text className='ai-chat__toolbar-text'>新会话</Text>
-        </View>
-        <View
-          className='ai-chat__toolbar-btn'
-          onClick={() => Taro.navigateTo({ url: '/pages/preferences/index' })}
-        >
-          <Text className='ai-chat__toolbar-icon'>⚙️</Text>
-          <Text className='ai-chat__toolbar-text'>偏好</Text>
+
+        <View className='ai-chat__toolbar'>
+          <View
+            className={`ai-chat__toolbar-btn ${showSessions ? 'ai-chat__toolbar-btn--active' : ''}`}
+            onClick={toggleSessions}
+          >
+            <Text className='ai-chat__toolbar-icon'>历</Text>
+          </View>
+          <View className='ai-chat__toolbar-btn' onClick={handleNewSession}>
+            <Text className='ai-chat__toolbar-icon'>新</Text>
+          </View>
+          <View
+            className='ai-chat__toolbar-btn'
+            onClick={() => Taro.navigateTo({ url: '/pages/preferences/index' })}
+          >
+            <Text className='ai-chat__toolbar-icon'>味</Text>
+          </View>
         </View>
       </View>
 
@@ -435,6 +474,12 @@ export default function AiChatPage() {
             <View className='ai-chat__welcome-title'>你好，我是小厨</View>
             <View className='ai-chat__welcome-desc'>
               有什么菜品问题都可以问我哦～
+            </View>
+            <View className='ai-chat__welcome-card'>
+              <Text className='ai-chat__welcome-card-title'>今天可以这样问</Text>
+              <Text className='ai-chat__welcome-card-text'>
+                想吃辣、清淡、多人聚餐，或者不知道怎么搭配，我都能帮你把选择缩小一点。
+              </Text>
             </View>
           </View>
         )}

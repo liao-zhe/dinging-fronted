@@ -83,6 +83,23 @@
   font-weight: 600;
 }
 
+.preferences__close-btn {
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 18rpx;
+  background: #fff;
+  border: 1rpx solid #ead8c8;
+  border-radius: 40rpx;
+}
+
+.preferences__close-btn-text {
+  font-size: 28rpx;
+  color: #7b6c60;
+  font-weight: 500;
+}
+
 .preferences__tip {
   margin-top: 32rpx;
   padding: 24rpx;
