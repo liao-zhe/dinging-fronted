@@ -34,3 +34,5 @@ Thumbs.db
 
 # WeChat DevTools local config
 project.private.config.json
+
+*.codex
