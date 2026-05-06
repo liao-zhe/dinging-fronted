@@ -22,6 +22,44 @@ interface Message {
   created_at: string;
 }
 
+const decodeChunk = (chunk: ArrayBuffer | Uint8Array | string): string => {
+  if (typeof chunk === 'string') return chunk;
+
+  const bytes = chunk instanceof ArrayBuffer ? new Uint8Array(chunk) : chunk;
+
+  if (typeof TextDecoder !== 'undefined') {
+    return new TextDecoder('utf-8').decode(bytes, { stream: true });
+  }
+
+  const binary = Array.from(bytes)
+    .map((byte) => String.fromCharCode(byte))
+    .join('');
+  return decodeURIComponent(escape(binary));
+};
+
+const parseSseBuffer = (
+  buffer: string,
+  onData: (data: any) => void,
+): string => {
+  const lines = buffer.split(/\r?\n/);
+  const rest = lines.pop() || '';
+
+  lines.forEach((line) => {
+    if (!line.startsWith('data:')) return;
+
+    const data = line.slice(5).trim();
+    if (!data || data === '[DONE]') return;
+
+    try {
+      onData(JSON.parse(data));
+    } catch (error) {
+      console.warn('ignore invalid sse data:', data);
+    }
+  });
+
+  return rest;
+};
+
 export default function AiChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -225,40 +263,77 @@ export default function AiChatPage() {
 
   // 发送消息（流式）
   const handleSend = async () => {
-    if (!inputValue.trim() || isLoading) return;
+    const content = inputValue.trim();
+    if (!content || isLoading) return;
 
+    const token = getToken();
+    if (!token) {
+      Taro.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+
+    const now = Date.now();
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `${now}`,
       role: 'user',
-      content: inputValue.trim(),
+      content,
+      created_at: new Date().toISOString(),
+    };
+    const tempAssistantId = `${now}-assistant`;
+    const tempAssistant: Message = {
+      id: tempAssistantId,
+      role: 'assistant',
+      content: '',
       created_at: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    let fullContent = '';
+    let dishes: any[] = [];
+    let sseBuffer = '';
+    let hasReceivedChunk = false;
+
+    const updateAssistant = () => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempAssistantId
+            ? {
+                ...msg,
+                content: fullContent,
+                dishes: dishes.length > 0 ? dishes : undefined,
+              }
+            : msg,
+        ),
+      );
+    };
+
+    const handleSseData = (data: any) => {
+      if (data.type === 'text' && data.content) {
+        fullContent += data.content;
+        updateAssistant();
+      }
+
+      if (data.type === 'dishes' && Array.isArray(data.dishes)) {
+        dishes = data.dishes;
+        updateAssistant();
+      }
+
+      if (data.type === 'done') {
+        updateAssistant();
+      }
+    };
+
+    const handleChunk = (chunk: ArrayBuffer | Uint8Array | string) => {
+      hasReceivedChunk = true;
+      sseBuffer = parseSseBuffer(sseBuffer + decodeChunk(chunk), handleSseData);
+    };
+
+    setMessages((prev) => [...prev, userMessage, tempAssistant]);
     setInputValue('');
     setIsLoading(true);
 
     try {
-      const token = getToken();
-      if (!token) {
-        Taro.showToast({ title: '请先登录', icon: 'none' });
-        return;
-      }
-
-      // 创建一个临时的 assistant 消息用于流式更新
-      const tempAssistantId = Date.now().toString() + '-assistant';
-      const tempAssistant: Message = {
-        id: tempAssistantId,
-        role: 'assistant',
-        content: '',
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, tempAssistant]);
-
-      // 使用 Taro.request 进行流式请求
-      const url = buildApiUrl('/ai/chat/stream');
-      const res = await Taro.request({
-        url,
+      const requestTask = Taro.request({
+        url: buildApiUrl('/ai/chat/stream'),
         method: 'POST',
         header: {
           Authorization: `Bearer ${token}`,
@@ -266,114 +341,37 @@ export default function AiChatPage() {
         },
         data: {
           session_id: sessionId,
-          content: userMessage.content,
+          content,
         },
+        responseType: 'arraybuffer',
+        enableChunked: true,
         enableChunkedTransfer: true,
-      });
+      } as any);
 
-      // 处理流式响应
-      let fullContent = '';
-      let dishes: any[] = [];
-
-      // 监听分块数据（Taro chunked transfer 返回 ArrayBuffer）
-      let sseBuffer = '';
-      const onRequestTask = (res: any) => {
-        if (res.data) {
-          try {
-            // Taro 的 onChunkReceived 返回 ArrayBuffer，需要解码
-            let text: string;
-            if (res.data instanceof ArrayBuffer) {
-              const decoder = new TextDecoder('utf-8');
-              text = decoder.decode(new Uint8Array(res.data), { stream: true });
-            } else if (res.data instanceof Uint8Array) {
-              const decoder = new TextDecoder('utf-8');
-              text = decoder.decode(res.data, { stream: true });
-            } else {
-              text = String(res.data);
-            }
-
-            // 拼接到缓冲区，处理跨chunk的不完整行
-            sseBuffer += text;
-            const lines = sseBuffer.split('\n');
-            sseBuffer = lines.pop() || '';  // 最后一个可能不完整，留到下次
-
-            for (const line of lines) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6).trim();
-                if (data === '[DONE]') continue;
-
-                try {
-                  const parsed = JSON.parse(data);
-
-                  if (parsed.type === 'text' && parsed.content) {
-                    fullContent += parsed.content;
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === tempAssistantId
-                          ? { ...msg, content: fullContent }
-                          : msg,
-                      ),
-                    );
-                  }
-
-                  if (parsed.type === 'dishes' && parsed.dishes) {
-                    dishes = parsed.dishes;
-                  }
-
-                  if (parsed.type === 'done') {
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === tempAssistantId
-                          ? {
-                              ...msg,
-                              content: fullContent,
-                              dishes: dishes.length > 0 ? dishes : undefined,
-                            }
-                          : msg,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  // 忽略解析错误
-                }
-              }
-            }
-          } catch (e) {
-            // 忽略处理错误
-          }
-        }
-      };
-
-      if (res && typeof res === 'object' && 'onChunkReceived' in res) {
-        (res as any).onChunkReceived(onRequestTask);
-      } else {
-        if (res.data) {
-          const data = res.data as any;
-          if (data.content) fullContent = data.content;
-          if (data.dishes) dishes = data.dishes;
-
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === tempAssistantId
-                ? {
-                    ...msg,
-                    content: fullContent,
-                    dishes: dishes.length > 0 ? dishes : undefined,
-                  }
-                : msg,
-            ),
-          );
-        }
+      if (typeof (requestTask as any).onChunkReceived === 'function') {
+        (requestTask as any).onChunkReceived((res: { data: ArrayBuffer }) => {
+          if (res.data) handleChunk(res.data);
+        });
       }
 
-      const responseSessionId = (res.header as any)?.['x-session-id'] || res.data?.session_id;
+      const res = await requestTask;
+      const responseSessionId =
+        (res.header as any)?.['X-Session-Id'] ||
+        (res.header as any)?.['x-session-id'] ||
+        (res.data as any)?.session_id;
+
       if (responseSessionId) {
         setSessionId(responseSessionId);
+      }
+
+      if (!hasReceivedChunk && res.data) {
+        handleChunk(res.data as ArrayBuffer);
+        parseSseBuffer(`${sseBuffer}\n`, handleSseData);
       }
     } catch (error) {
       console.error('发送消息失败:', error);
       Taro.showToast({ title: '网络错误，请重试', icon: 'none' });
-      setMessages((prev) => prev.filter((msg) => !msg.id.endsWith('-assistant')));
+      setMessages((prev) => prev.filter((msg) => msg.id !== tempAssistantId));
     } finally {
       setIsLoading(false);
     }
@@ -445,7 +443,7 @@ export default function AiChatPage() {
           <View key={msg.id}>
             <View className={`ai-chat__bubble ai-chat__bubble--${msg.role}`}>
               <View className='ai-chat__bubble-content'>
-                <Text>{msg.content}</Text>
+                <Text className='ai-chat__bubble-text'>{msg.content}</Text>
               </View>
             </View>
             {msg.dishes && msg.dishes.length > 0 && (

@@ -1,10 +1,10 @@
 import {
   defineConfig,
   type UserConfigExport
-} from '@tarojs/cli/dist/util/defineConfig'
+} from '@tarojs/cli/dist/util/defineConfig.js'
 
-import devConfig from './dev'
-import prodConfig from './prod'
+import devConfig from './dev.ts'
+import prodConfig from './prod.ts'
 
 const baseConfig: UserConfigExport<'webpack5'> = {
   projectName: 'family-menu-miniapp',
