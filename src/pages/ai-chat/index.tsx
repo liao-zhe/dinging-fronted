@@ -275,12 +275,27 @@ export default function AiChatPage() {
       let fullContent = '';
       let dishes: any[] = [];
 
-      // 监听分块数据
+      // 监听分块数据（Taro chunked transfer 返回 ArrayBuffer）
+      let sseBuffer = '';
       const onRequestTask = (res: any) => {
         if (res.data) {
           try {
-            const text = res.data as string;
-            const lines = text.split('\n');
+            // Taro 的 onChunkReceived 返回 ArrayBuffer，需要解码
+            let text: string;
+            if (res.data instanceof ArrayBuffer) {
+              const decoder = new TextDecoder('utf-8');
+              text = decoder.decode(new Uint8Array(res.data), { stream: true });
+            } else if (res.data instanceof Uint8Array) {
+              const decoder = new TextDecoder('utf-8');
+              text = decoder.decode(res.data, { stream: true });
+            } else {
+              text = String(res.data);
+            }
+
+            // 拼接到缓冲区，处理跨chunk的不完整行
+            sseBuffer += text;
+            const lines = sseBuffer.split('\n');
+            sseBuffer = lines.pop() || '';  // 最后一个可能不完整，留到下次
 
             for (const line of lines) {
               if (line.startsWith('data: ')) {
