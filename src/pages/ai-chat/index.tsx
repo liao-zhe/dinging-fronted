@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { useState, useRef, useEffect, useMemo } from 'react';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import { View, Input, Text, ScrollView } from '@tarojs/components';
 import { buildApiUrl } from '../../utils/api';
 import { getToken } from '../../utils/session';
@@ -62,25 +62,35 @@ const parseSseBuffer = (
   return rest;
 };
 
+const removeToolCallMarkup = (content: string): string =>
+  content
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+    .replace(/\{\s*["']name["']\s*:\s*["'][^"']+["']\s*,\s*["']arguments["']\s*:\s*\{[\s\S]*?\}\s*\}/g, '')
+    .trim();
+
+const filterMentionedDishes = (content: string, dishes: any[]): any[] =>
+  dishes.filter((dish) => dish?.name && content.includes(dish.name));
+
 function getChatHeaderStyle(): CSSProperties {
   const systemInfo = getCompatibleSystemInfoSync();
   const statusBarHeight = systemInfo.statusBarHeight || 20;
+  const windowWidth = systemInfo.windowWidth || 375;
 
   try {
     const menuButton = Taro.getMenuButtonBoundingClientRect();
     const gap = Math.max(menuButton.top - statusBarHeight, 8);
-    const topInset = statusBarHeight + gap;
-    const capsuleReserve = Math.max(menuButton.width + gap + 16, 112);
+    const topInset = menuButton.bottom + gap + 12;
+    const capsuleReserve = Math.max(windowWidth - menuButton.left + 16, 24);
 
     return {
       paddingTop: `${topInset}px`,
       paddingRight: `${capsuleReserve}px`,
-      minHeight: `${menuButton.bottom + gap}px`,
+      minHeight: `${topInset + 4}px`,
     };
   } catch {
     return {
-      paddingTop: `${statusBarHeight + 10}px`,
-      paddingRight: '112px',
+      paddingTop: `${statusBarHeight + 16}px`,
+      paddingRight: '24px',
       minHeight: `${statusBarHeight + 58}px`,
     };
   }
@@ -91,6 +101,7 @@ export default function AiChatPage() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [draftSessionId, setDraftSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [showSessions, setShowSessions] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -131,24 +142,50 @@ export default function AiChatPage() {
     try {
       const res = await getSessions();
       if (res.code === 200) {
-        setSessions(res.data);
+        setSessions((prev) => {
+          if (!draftSessionId) {
+            return res.data;
+          }
+
+          const draftSession = prev.find((session) => session.id === draftSessionId);
+          if (!draftSession) {
+            return res.data;
+          }
+
+          const nextSessions = res.data.filter((session) => session.id !== draftSessionId);
+          return [draftSession, ...nextSessions];
+        });
       }
     } catch (error) {
       console.error('加载会话列表失败:', error);
     }
   };
 
+  useDidShow(() => {
+    void loadSessions();
+  });
+
   // 切换显示会话列表
   const toggleSessions = () => {
-    if (!showSessions) {
-      loadSessions();
-    }
-    setShowSessions(!showSessions);
+    setShowSessions((prev) => {
+      if (!prev) {
+        void loadSessions();
+      }
+      return !prev;
+    });
   };
 
   // 选择会话
   const handleSelectSession = async (sid: string) => {
+    if (sid === draftSessionId) {
+      setSessionId(null);
+      setShowSessions(false);
+      setMessages([]);
+      return;
+    }
+
     setSessionId(sid);
+    setDraftSessionId(null);
     setShowSessions(false);
     setMessages([]);
 
@@ -158,7 +195,10 @@ export default function AiChatPage() {
         const historyMessages: Message[] = res.data.map((msg) => ({
           id: msg.id,
           role: msg.role as 'user' | 'assistant',
-          content: msg.content,
+          content:
+            msg.role === 'assistant'
+              ? removeToolCallMarkup(msg.content)
+              : msg.content,
           created_at: msg.created_at,
         }));
         setMessages(historyMessages);
@@ -171,6 +211,15 @@ export default function AiChatPage() {
 
   // 删除会话
   const handleDeleteSession = async (sid: string) => {
+    if (sid === draftSessionId) {
+      setSessions((prev) => prev.filter((s) => s.id !== sid));
+      setDraftSessionId(null);
+      if (!sessionId) {
+        setMessages([]);
+      }
+      return;
+    }
+
     try {
       const res = await deleteSession(sid);
       if (res.code === 200) {
@@ -190,6 +239,19 @@ export default function AiChatPage() {
   // 新建会话
   const handleNewSession = () => {
     setSessionId(null);
+    const nextDraftId = `draft-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+    setDraftSessionId(nextDraftId);
+    setSessions((prev) => [
+      {
+        id: nextDraftId,
+        title: '新会话',
+        message_count: 0,
+        last_message_at: nowIso,
+        created_at: nowIso,
+      },
+      ...prev.filter((session) => session.id !== nextDraftId),
+    ]);
     setMessages([]);
     setShowSessions(false);
   };
@@ -336,11 +398,12 @@ export default function AiChatPage() {
     const handleSseData = (data: any) => {
       if (data.type === 'text' && data.content) {
         fullContent += data.content;
+        fullContent = removeToolCallMarkup(fullContent);
         updateAssistant();
       }
 
       if (data.type === 'dishes' && Array.isArray(data.dishes)) {
-        dishes = data.dishes;
+        dishes = filterMentionedDishes(fullContent, data.dishes);
         updateAssistant();
       }
 
@@ -389,6 +452,23 @@ export default function AiChatPage() {
 
       if (responseSessionId) {
         setSessionId(responseSessionId);
+        if (draftSessionId) {
+          setSessions((prev) =>
+            prev.map((session) =>
+              session.id === draftSessionId
+                ? {
+                    ...session,
+                    id: responseSessionId,
+                    title: session.title === '新会话' ? content.slice(0, 50) : session.title,
+                    message_count: Math.max(session.message_count, 1),
+                    last_message_at: new Date().toISOString(),
+                  }
+                : session,
+            ),
+          );
+          setDraftSessionId(null);
+        }
+        void loadSessions();
       }
 
       if (!hasReceivedChunk && res.data) {

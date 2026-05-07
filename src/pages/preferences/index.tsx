@@ -1,8 +1,31 @@
-import { useState, useEffect } from 'react';
+import type { CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Taro from '@tarojs/taro';
 import { View, Text, Input, Picker } from '@tarojs/components';
 import { getPreferences, updatePreferences, UserPreference } from '../../services/ai';
+import { getCompatibleSystemInfoSync } from '../../utils/system-info';
 import './index.scss';
+
+function getPreferencesHeaderStyle(): CSSProperties {
+  const systemInfo = getCompatibleSystemInfoSync();
+  const statusBarHeight = systemInfo.statusBarHeight || 20;
+  const windowWidth = systemInfo.windowWidth || 375;
+
+  try {
+    const menuButton = Taro.getMenuButtonBoundingClientRect();
+    const gap = Math.max(menuButton.top - statusBarHeight, 8);
+
+    return {
+      paddingTop: `${menuButton.bottom + gap + 12}px`,
+      paddingRight: `${Math.max(windowWidth - menuButton.left + 16, 24)}px`,
+    };
+  } catch {
+    return {
+      paddingTop: `${statusBarHeight + 16}px`,
+      paddingRight: '24px',
+    };
+  }
+}
 
 export default function PreferencesPage() {
   const [preferences, setPreferences] = useState<Partial<UserPreference>>({
@@ -15,12 +38,12 @@ export default function PreferencesPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const headerStyle = useMemo(() => getPreferencesHeaderStyle(), []);
 
-  // 口味偏好选项
   const tasteOptions = ['清淡', '微辣', '中辣', '特辣', '酸甜', '咸鲜', '麻辣'];
 
   useEffect(() => {
-    loadPreferences();
+    void loadPreferences();
   }, []);
 
   const loadPreferences = async () => {
@@ -80,6 +103,16 @@ export default function PreferencesPage() {
 
   return (
     <View className='preferences'>
+      <View className='preferences__header' style={headerStyle}>
+        <View className='preferences__header-main'>
+          <Text className='preferences__title'>个人偏好</Text>
+          <Text className='preferences__subtitle'>用于优化推荐和对话理解</Text>
+        </View>
+        <View className='preferences__close-top' onClick={closePreferences}>
+          <Text className='preferences__close-top-text'>关闭</Text>
+        </View>
+      </View>
+
       <View className='preferences__section'>
         <Text className='preferences__section-title'>饮食限制</Text>
         <Input
@@ -95,20 +128,20 @@ export default function PreferencesPage() {
         <Picker
           mode='selector'
           range={tasteOptions}
-          value={tasteOptions.indexOf(preferences.taste_preferences || '')}
+          value={Math.max(tasteOptions.indexOf(preferences.taste_preferences || ''), 0)}
           onChange={(e) => handleInputChange('taste_preferences', tasteOptions[e.detail.value])}
         >
           <View className='preferences__picker'>
             <Text className='preferences__picker-text'>
               {preferences.taste_preferences || '请选择口味偏好'}
             </Text>
-            <Text className='preferences__picker-arrow'>▼</Text>
+            <Text className='preferences__picker-arrow'>›</Text>
           </View>
         </Picker>
       </View>
 
       <View className='preferences__section'>
-        <Text className='preferences__section-title'>喜爱菜系</Text>
+        <Text className='preferences__section-title'>喜欢菜系</Text>
         <Input
           className='preferences__input'
           value={preferences.favorite_cuisines || ''}
@@ -148,22 +181,24 @@ export default function PreferencesPage() {
         />
       </View>
 
-      <View
-        className={`preferences__save-btn ${isSaving ? 'preferences__save-btn--disabled' : ''}`}
-        onClick={handleSave}
-      >
-        <Text className='preferences__save-btn-text'>
-          {isSaving ? '保存中...' : '保存偏好'}
-        </Text>
-      </View>
+      <View className='preferences__actions'>
+        <View
+          className={`preferences__save-btn ${isSaving ? 'preferences__save-btn--disabled' : ''}`}
+          onClick={handleSave}
+        >
+          <Text className='preferences__save-btn-text'>
+            {isSaving ? '保存中...' : '保存偏好'}
+          </Text>
+        </View>
 
-      <View className='preferences__close-btn' onClick={closePreferences}>
-        <Text className='preferences__close-btn-text'>关闭</Text>
+        <View className='preferences__close-btn' onClick={closePreferences}>
+          <Text className='preferences__close-btn-text'>关闭</Text>
+        </View>
       </View>
 
       <View className='preferences__tip'>
         <Text className='preferences__tip-text'>
-          💡 小厨会根据你的偏好提供更个性化的菜品推荐
+          小厨会根据你的偏好提供更个性化的菜品推荐
         </Text>
       </View>
     </View>
