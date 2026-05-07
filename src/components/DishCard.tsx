@@ -59,16 +59,11 @@ export default function DishCard({ dishes }: DishCardProps) {
             )}
             <View className='dish-card__info'>
               <Text className='dish-card__name'>{dish.name}</Text>
-              {dish.category && (
-                <Text className='dish-card__category'>{dish.category}</Text>
-              )}
+
               {dish.description && (
                 <Text className='dish-card__desc'>{dish.description}</Text>
               )}
               <View className='dish-card__bottom'>
-                {dish.price !== undefined && (
-                  <Text className='dish-card__price'>¥{dish.price}</Text>
-                )}
                 {dish.tag && (
                   <View className='dish-card__tag'>
                     <Text className='dish-card__tag-text'>{dish.tag}</Text>
