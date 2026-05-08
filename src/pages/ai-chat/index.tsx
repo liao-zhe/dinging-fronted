@@ -65,6 +65,8 @@ const parseSseBuffer = (
 const removeToolCallMarkup = (content: string): string =>
   content
     .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+    .replace(/<tool_call>[\s\S]*$/g, '')
+    .replace(/<\/?tool_call>/g, '')
     .replace(/\{\s*["']name["']\s*:\s*["'][^"']+["']\s*,\s*["']arguments["']\s*:\s*\{[\s\S]*?\}\s*\}/g, '')
     .trim();
 

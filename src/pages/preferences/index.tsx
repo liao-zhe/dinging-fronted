@@ -64,7 +64,7 @@ export default function PreferencesPage() {
     Taro.navigateBack({
       delta: 1,
       fail: () => {
-        Taro.switchTab({ url: '/pages/ai-chat/index' });
+        Taro.switchTab({ url: '/pages/home/index' });
       },
     });
   };

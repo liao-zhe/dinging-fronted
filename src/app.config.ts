@@ -32,12 +32,6 @@ export default {
         selectedIconPath: 'assets/icons/tab-orders-active.png',
       },
       {
-        pagePath: 'pages/ai-chat/index',
-        text: 'AI助手',
-        iconPath: 'assets/icons/tab-ai.png',
-        selectedIconPath: 'assets/icons/tab-ai-active.png',
-      },
-      {
         pagePath: 'pages/profile/index',
         text: '我的',
         iconPath: 'assets/icons/tab-profile.png',

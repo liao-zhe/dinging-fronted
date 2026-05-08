@@ -1,12 +1,12 @@
 import './app.scss'
 
-import { createElement, Fragment, type PropsWithChildren } from 'react'
+import { createElement, Fragment } from 'react'
 
 import { patchDeprecatedSystemInfoApis } from './utils/system-info'
 
 patchDeprecatedSystemInfoApis()
 
-function App({ children }: PropsWithChildren) {
+function App({ children }) {
   return createElement(
     Fragment,
     null,
