@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '口味偏好设置',
-  navigationBarBackgroundColor: '#ff6b35',
-  navigationBarTextStyle: 'white',
+  navigationBarTitleText: '个人偏好',
+  navigationBarBackgroundColor: '#fff7ee',
+  navigationBarTextStyle: 'black'
 })

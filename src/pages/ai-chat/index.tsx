@@ -13,6 +13,7 @@ import {
 } from '../../services/ai';
 import DishCard from '../../components/DishCard';
 import SessionList from '../../components/SessionList';
+import { createOrder, OrderItem } from '../../services/order';
 import { getCompatibleSystemInfoSync } from '../../utils/system-info';
 import './index.scss';
 
@@ -73,6 +74,30 @@ const removeToolCallMarkup = (content: string): string =>
 const filterMentionedDishes = (content: string, dishes: any[]): any[] =>
   dishes.filter((dish) => dish?.name && content.includes(dish.name));
 
+const formatOrderDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = `${now.getMonth() + 1}`.padStart(2, '0');
+  const day = `${now.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const inferMeal = () => {
+  const hour = new Date().getHours();
+  if (hour < 10) return '早餐';
+  if (hour < 15) return '午餐';
+  return '晚餐';
+};
+
+const toOrderItems = (dishes: any[] = []): OrderItem[] =>
+  dishes
+    .filter((dish) => dish?.id && dish?.name)
+    .map((dish) => ({
+      dishId: dish.id,
+      dishName: dish.name,
+      quantity: 1,
+    }));
+
 function getChatHeaderStyle(): CSSProperties {
   const systemInfo = getCompatibleSystemInfoSync();
   const statusBarHeight = systemInfo.statusBarHeight || 20;
@@ -107,6 +132,7 @@ export default function AiChatPage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [showSessions, setShowSessions] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [orderingMessageId, setOrderingMessageId] = useState('');
   const scrollViewRef = useRef<HTMLDivElement>(null);
   const recorderManager = useRef<any>(null);
   const headerStyle = useMemo(() => getChatHeaderStyle(), []);
@@ -352,6 +378,46 @@ export default function AiChatPage() {
     Taro.showToast({ title: '语音识别功能开发中', icon: 'none' });
   };
 
+  const handleCreateOrderFromDishes = async (message: Message) => {
+    if (orderingMessageId) return;
+
+    const items = toOrderItems(message.dishes);
+    if (!items.length) {
+      Taro.showToast({ title: '没有可下单的菜品', icon: 'none' });
+      return;
+    }
+
+    const date = formatOrderDate();
+    const meal = inferMeal();
+    const peopleCount = 2;
+    const res = await Taro.showModal({
+      title: '一键下单',
+      content: `将 ${items.length} 个推荐菜品加入订单：${date} ${meal}，${peopleCount} 人用餐，每道菜 1 份。`,
+      confirmText: '确认下单',
+      confirmColor: '#ff6b35',
+    });
+
+    if (!res.confirm) return;
+
+    try {
+      setOrderingMessageId(message.id);
+      Taro.showLoading({ title: '下单中...', mask: true });
+      await createOrder({ items, date, meal, peopleCount });
+      Taro.showToast({ title: '下单成功', icon: 'success' });
+      setTimeout(() => {
+        void Taro.switchTab({ url: '/pages/orders/index' });
+      }, 350);
+    } catch (error) {
+      Taro.showToast({
+        title: error instanceof Error ? error.message : '下单失败',
+        icon: 'none',
+      });
+    } finally {
+      setOrderingMessageId('');
+      Taro.hideLoading();
+    }
+  };
+
   // 发送消息（流式）
   const handleSend = async () => {
     const content = inputValue.trim();
@@ -574,7 +640,15 @@ export default function AiChatPage() {
               </View>
             </View>
             {msg.dishes && msg.dishes.length > 0 && (
-              <DishCard dishes={msg.dishes} />
+              <>
+                <DishCard dishes={msg.dishes} />
+                <View
+                  className={`ai-chat__order-btn ${orderingMessageId === msg.id ? 'ai-chat__order-btn--loading' : ''}`}
+                  onClick={() => void handleCreateOrderFromDishes(msg)}
+                >
+                  {orderingMessageId === msg.id ? '下单中...' : '一键下单'}
+                </View>
+              </>
             )}
           </View>
         ))}

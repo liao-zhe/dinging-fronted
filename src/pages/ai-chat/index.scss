@@ -261,6 +261,25 @@
   height: 24rpx;
 }
 
+.ai-chat__order-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 240rpx;
+  height: 66rpx;
+  margin: 14rpx 0 20rpx 24rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, #ff8050 0%, #ff6236 100%);
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 800;
+  box-shadow: 0 10rpx 20rpx rgba(236, 104, 62, 0.22);
+}
+
+.ai-chat__order-btn--loading {
+  opacity: 0.62;
+}
+
 .ai-chat__quick-replies {
   box-sizing: border-box;
   display: flex;

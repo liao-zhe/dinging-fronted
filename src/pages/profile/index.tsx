@@ -5,7 +5,13 @@ import { useMemo, useRef, useState } from 'react'
 
 import { GlobalAssistant } from '../../components/global-assistant'
 import { PageShell } from '../../components/page-shell'
-import { getCategories, type Category } from '../../services/dish'
+import {
+  createCategory,
+  deleteCategory,
+  getCategories,
+  updateCategory,
+  type Category
+} from '../../services/dish'
 import {
   createManagedDish,
   deleteManagedDish,
@@ -21,6 +27,7 @@ import { getCompatibleSystemInfoSync } from '../../utils/system-info'
 import './index.scss'
 
 type ModalMode = 'create' | 'edit'
+type CategoryModalMode = 'create' | 'edit'
 
 interface DishFormState {
   name: string
@@ -92,10 +99,14 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export default function ProfilePage() {
   const [showModal, setShowModal] = useState(false)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [modalMode, setModalMode] = useState<ModalMode>('create')
+  const [categoryModalMode, setCategoryModalMode] = useState<CategoryModalMode>('create')
   const [editingDishId, setEditingDishId] = useState('')
+  const [editingCategoryId, setEditingCategoryId] = useState('')
   const [form, setForm] = useState<DishFormState>(() => createEmptyForm())
+  const [categoryName, setCategoryName] = useState('')
   const [passwordForm, setPasswordForm] = useState<PasswordFormState>(() =>
     createEmptyPasswordForm()
   )
@@ -103,6 +114,7 @@ export default function ProfilePage() {
   const [dishList, setDishList] = useState<ManagedDish[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [submittingCategory, setSubmittingCategory] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const skipNextDidShowSyncRef = useRef(false)
 
@@ -122,6 +134,11 @@ export default function ProfilePage() {
       : '选择分类并填写菜名和描述，添加后会同步展示到首页'
 
   const passwordSubmitText = changingPassword ? '处理中...' : '确认修改'
+  const categorySubmitText = submittingCategory
+    ? '提交中...'
+    : categoryModalMode === 'edit'
+      ? '保存修改'
+      : '确认创建'
 
   const updateForm = (patch: Partial<DishFormState>) => {
     setForm((prev) => ({ ...prev, ...patch }))
@@ -149,6 +166,27 @@ export default function ProfilePage() {
   const closePasswordModal = () => {
     resetPasswordForm()
     setShowPasswordModal(false)
+  }
+
+  const openCreateCategoryModal = () => {
+    setCategoryModalMode('create')
+    setEditingCategoryId('')
+    setCategoryName('')
+    setShowCategoryModal(true)
+  }
+
+  const openEditCategoryModal = (category: Category) => {
+    setCategoryModalMode('edit')
+    setEditingCategoryId(category.id)
+    setCategoryName(category.name)
+    setShowCategoryModal(true)
+  }
+
+  const closeCategoryModal = () => {
+    setCategoryModalMode('create')
+    setEditingCategoryId('')
+    setCategoryName('')
+    setShowCategoryModal(false)
   }
 
   const loadManagedDishes = async () => {
@@ -214,12 +252,100 @@ export default function ProfilePage() {
 
   const openCreateModal = () => {
     if (!categories.length) {
-      Taro.showToast({ title: '暂无可用分类', icon: 'none' })
+      openCreateCategoryModal()
       return
     }
 
     resetForm(categories[0]?.id || '')
     setShowModal(true)
+  }
+
+  const refreshCategories = async (selectedCategoryId?: string) => {
+    const categoryList = await getCategories()
+    setCategories(categoryList)
+
+    if (selectedCategoryId) {
+      updateForm({ categoryId: selectedCategoryId })
+    } else if (!categoryList.some((category) => category.id === form.categoryId)) {
+      updateForm({ categoryId: categoryList[0]?.id || '' })
+    }
+
+    return categoryList
+  }
+
+  const handleSubmitCategory = async () => {
+    if (submittingCategory) {
+      return
+    }
+
+    const trimmedName = categoryName.trim()
+    if (!trimmedName) {
+      Taro.showToast({ title: '请输入分类名称', icon: 'none' })
+      return
+    }
+
+    try {
+      setSubmittingCategory(true)
+      Taro.showLoading({
+        title: categoryModalMode === 'edit' ? '保存中...' : '创建中...',
+        mask: true
+      })
+      const category =
+        categoryModalMode === 'edit' && editingCategoryId
+          ? await updateCategory(editingCategoryId, { name: trimmedName })
+          : await createCategory({ name: trimmedName })
+      await refreshCategories(category.id)
+      closeCategoryModal()
+      Taro.showToast({
+        title: categoryModalMode === 'edit' ? '分类已更新' : '分类已创建',
+        icon: 'success'
+      })
+    } catch (error) {
+      console.error('create category failed:', error)
+      Taro.showToast({
+        title: getErrorMessage(
+          error,
+          categoryModalMode === 'edit' ? '更新分类失败' : '创建分类失败'
+        ),
+        icon: 'none'
+      })
+    } finally {
+      setSubmittingCategory(false)
+      Taro.hideLoading()
+    }
+  }
+
+  const handleDeleteCategory = async (category: Category) => {
+    const usedCount = dishList.filter((dish) => dish.category_id === category.id).length
+    const res = await Taro.showModal({
+      title: '删除分类',
+      content:
+        usedCount > 0
+          ? `“${category.name}” 下还有 ${usedCount} 个菜品，请先编辑这些菜品到其他分类，或删除菜品后再删分类。`
+          : `确认删除“${category.name}”吗？删除后首页分类栏也会同步移除。`,
+      confirmText: usedCount > 0 ? '知道了' : '删除',
+      confirmColor: usedCount > 0 ? '#f5a154' : '#e26d5a',
+      showCancel: usedCount === 0
+    })
+
+    if (usedCount > 0 || !res.confirm) {
+      return
+    }
+
+    try {
+      Taro.showLoading({ title: '删除中...', mask: true })
+      await deleteCategory(category.id)
+      await refreshCategories()
+      Taro.showToast({ title: '分类已删除', icon: 'success' })
+    } catch (error) {
+      console.error('delete category failed:', error)
+      Taro.showToast({
+        title: getErrorMessage(error, '删除分类失败'),
+        icon: 'none'
+      })
+    } finally {
+      Taro.hideLoading()
+    }
   }
 
   const openPasswordModal = () => {
@@ -515,6 +641,41 @@ export default function ProfilePage() {
           </Text>
         </View>
 
+        {isChef ? (
+          <View className='profile-category card'>
+            <View className='profile-category__head'>
+              <View>
+                <Text className='profile-category__title'>分类管理</Text>
+                <Text className='profile-category__desc'>
+                  当前 {categories.length} 个分类，新增后首页分类栏会同步展示
+                </Text>
+              </View>
+              <Text className='profile-category__add' onClick={openCreateCategoryModal}>
+                + 分类
+              </Text>
+            </View>
+            <View className='profile-category__list'>
+              {categories.map((category) => (
+                <View className='profile-category__item' key={category.id}>
+                  <Text className='profile-category__chip-name'>{category.name}</Text>
+                  <Text
+                    className='profile-category__action'
+                    onClick={() => openEditCategoryModal(category)}
+                  >
+                    编辑
+                  </Text>
+                  <Text
+                    className='profile-category__action profile-category__action--danger'
+                    onClick={() => void handleDeleteCategory(category)}
+                  >
+                    删除
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         <Text className='profile-section-title'>已管理菜品 ({dishList.length})</Text>
 
         {dishList.length === 0 ? (
@@ -707,6 +868,51 @@ export default function ProfilePage() {
                 }}
               >
                 {modalSubmitText}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {showCategoryModal ? (
+          <View
+            className='wish-modal-mask'
+            style={modalMaskStyle}
+            onClick={closeCategoryModal}
+          >
+            <View className='wish-modal card' onClick={(e) => e.stopPropagation()}>
+              <View className='wish-modal__head'>
+                <Text className='wish-modal__title'>
+                  {categoryModalMode === 'edit' ? '编辑分类' : '添加分类'}
+                </Text>
+                <Text className='wish-modal__close' onClick={closeCategoryModal}>
+                  ×
+                </Text>
+              </View>
+
+              <Text className='wish-modal__desc'>
+                {categoryModalMode === 'edit'
+                  ? '修改分类名称后，首页筛选栏和已关联菜品会同步显示新名称。'
+                  : '分类会出现在首页点单页的筛选栏，也会用于主厨添加菜品时选择归属。'}
+              </Text>
+
+              <Text className='wish-modal__label'>分类名称 *</Text>
+              <Input
+                className='wish-modal__input'
+                maxlength={50}
+                placeholder='例如：汤羹、素菜、儿童餐'
+                placeholderClass='wish-modal__placeholder'
+                placeholderStyle='color:#7b8495;'
+                value={categoryName}
+                onInput={(e) => setCategoryName(e.detail.value)}
+              />
+
+              <Text
+                className='wish-modal__submit'
+                onClick={() => {
+                  void handleSubmitCategory()
+                }}
+              >
+                {categorySubmitText}
               </Text>
             </View>
           </View>

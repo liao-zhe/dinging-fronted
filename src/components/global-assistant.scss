@@ -325,6 +325,29 @@
   line-height: 1.2;
 }
 
+.assistant-order {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 240rpx;
+  height: 64rpx;
+  margin: 14rpx 0 0 24rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, #ff8967 0%, #f76648 100%);
+  box-shadow: 0 10rpx 20rpx rgba(247, 102, 72, 0.18);
+}
+
+.assistant-order--loading {
+  opacity: 0.62;
+}
+
+.assistant-order__text {
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .assistant-drawer__footer {
   flex: 0 0 auto;
   display: flex;

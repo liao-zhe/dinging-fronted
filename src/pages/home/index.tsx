@@ -233,30 +233,30 @@ export default function HomePage() {
         </View>
       </ScrollView>
 
-      <View className='dish-grid'>
+      <View className='home-dish-grid'>
         {filteredDishes.map((dish, index) => {
           const qty = quantities[dish.id] || 0
 
           return (
-            <View className={`dish-card card home-enter home-enter--delay-${Math.min(index + 2, 4)}`} key={dish.id}>
-              <View className='dish-card__media'>
-                <Image className='dish-card__image' src={dish.image_url} mode='aspectFill' />
-                {dish.tag && <Text className='dish-card__tag'>{dish.tag}</Text>}
+            <View className={`home-dish-card card home-enter home-enter--delay-${Math.min(index + 2, 4)}`} key={dish.id}>
+              <View className='home-dish-card__media'>
+                <Image className='home-dish-card__image' src={dish.image_url} mode='aspectFill' />
+                {dish.tag && <Text className='home-dish-card__tag'>{dish.tag}</Text>}
               </View>
-              <View className='dish-card__body'>
-                <Text className='dish-card__name'>{dish.name}</Text>
-                <Text className='dish-card__desc'>{dish.description}</Text>
-                <View className='dish-card__footer'>
+              <View className='home-dish-card__body'>
+                <Text className='home-dish-card__name'>{dish.name}</Text>
+                <Text className='home-dish-card__desc'>{dish.description}</Text>
+                <View className='home-dish-card__footer'>
                   {qty > 0 ? (
-                    <View className='dish-card__stepper'>
+                    <View className='home-dish-card__stepper'>
                       <Text
-                        className={`dish-card__step pressable ${qty <= 1 ? 'dish-card__step--disabled' : ''}`}
+                        className={`home-dish-card__step pressable ${qty <= 1 ? 'home-dish-card__step--disabled' : ''}`}
                         onClick={() => updateQty(dish.id, qty - 1, dish.name)}
                       >
                         -
                       </Text>
-                      <Text className='dish-card__qty'>{qty}</Text>
-                      <Text className='dish-card__step pressable' onClick={() => updateQty(dish.id, qty + 1, dish.name)}>+</Text>
+                      <Text className='home-dish-card__qty'>{qty}</Text>
+                      <Text className='home-dish-card__step pressable' onClick={() => updateQty(dish.id, qty + 1, dish.name)}>+</Text>
                     </View>
                   ) : (
                     <Text className='accent-btn pressable' onClick={() => updateQty(dish.id, 1, dish.name)}>+ 选购</Text>

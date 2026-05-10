@@ -29,6 +29,22 @@ export function getCategories() {
   return api.get<{ code: number; data: Category[]; message: string }>('/dishes/categories').then(res => res.data)
 }
 
+export function createCategory(params: { name: string; sort_order?: number }) {
+  return api
+    .post<{ code: number; data: Category; message: string }>('/dishes/categories', params)
+    .then(res => res.data)
+}
+
+export function updateCategory(id: string, params: { name?: string; sort_order?: number }) {
+  return api
+    .put<{ code: number; data: Category; message: string }>(`/dishes/categories/${id}`, params)
+    .then(res => res.data)
+}
+
+export function deleteCategory(id: string) {
+  return api.delete<{ code: number; data: { id: string }; message: string }>(`/dishes/categories/${id}`)
+}
+
 // 获取菜品列表
 export function getDishList() {
   return api.get<{ code: number; data: Dish[]; message: string }>('/dishes').then(res => res.data)

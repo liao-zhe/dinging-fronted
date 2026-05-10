@@ -11,6 +11,7 @@ import {
   getSessionMessages,
   getSessions
 } from '../services/ai'
+import { createOrder, type OrderItem } from '../services/order'
 
 import './global-assistant.scss'
 
@@ -92,6 +93,30 @@ const filterMentionedDishes = (content: string, dishes: any[]): any[] =>
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max)
 
+const formatOrderDate = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = `${now.getMonth() + 1}`.padStart(2, '0')
+  const day = `${now.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const inferMeal = () => {
+  const hour = new Date().getHours()
+  if (hour < 10) return '早餐'
+  if (hour < 15) return '午餐'
+  return '晚餐'
+}
+
+const toOrderItems = (dishes: any[] = []): OrderItem[] =>
+  dishes
+    .filter(dish => dish?.id && dish?.name)
+    .map(dish => ({
+      dishId: dish.id,
+      dishName: dish.name,
+      quantity: 1
+    }))
+
 export function GlobalAssistant() {
   const systemInfo = getCompatibleSystemInfoSync()
   const windowWidth = systemInfo.windowWidth || 375
@@ -115,6 +140,7 @@ export function GlobalAssistant() {
   const [inputValue, setInputValue] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [orderingMessageId, setOrderingMessageId] = useState('')
   const [scrollIntoView, setScrollIntoView] = useState('')
   const dragRef = useRef({
     startX: 0,
@@ -262,6 +288,47 @@ export function GlobalAssistant() {
       }
     } catch {
       Taro.showToast({ title: '删除失败', icon: 'none' })
+    }
+  }
+
+  const handleCreateOrderFromDishes = async (message: AssistantMessage) => {
+    if (orderingMessageId) return
+
+    const items = toOrderItems(message.dishes)
+    if (!items.length) {
+      Taro.showToast({ title: '没有可下单的菜品', icon: 'none' })
+      return
+    }
+
+    const date = formatOrderDate()
+    const meal = inferMeal()
+    const peopleCount = 2
+    const res = await Taro.showModal({
+      title: '一键下单',
+      content: `将 ${items.length} 个推荐菜品加入订单：${date} ${meal}，${peopleCount} 人用餐，每道菜 1 份。`,
+      confirmText: '确认下单',
+      confirmColor: '#ff8967'
+    })
+
+    if (!res.confirm) return
+
+    try {
+      setOrderingMessageId(message.id)
+      Taro.showLoading({ title: '下单中...', mask: true })
+      await createOrder({ items, date, meal, peopleCount })
+      Taro.showToast({ title: '下单成功', icon: 'success' })
+      closeDrawer()
+      setTimeout(() => {
+        void Taro.switchTab({ url: '/pages/orders/index' })
+      }, 350)
+    } catch (error) {
+      Taro.showToast({
+        title: error instanceof Error ? error.message : '下单失败',
+        icon: 'none'
+      })
+    } finally {
+      setOrderingMessageId('')
+      Taro.hideLoading()
     }
   }
 
@@ -492,7 +559,19 @@ export function GlobalAssistant() {
                           </View>
                         )}
                       </View>
-                      {message.dishes?.length ? <DishCard dishes={message.dishes} /> : null}
+                      {message.dishes?.length ? (
+                        <>
+                          <DishCard dishes={message.dishes} />
+                          <View
+                            className={`assistant-order ${orderingMessageId === message.id ? 'assistant-order--loading' : ''}`}
+                            onClick={() => void handleCreateOrderFromDishes(message)}
+                          >
+                            <Text className='assistant-order__text'>
+                              {orderingMessageId === message.id ? '下单中...' : '一键下单'}
+                            </Text>
+                          </View>
+                        </>
+                      ) : null}
                     </View>
                   ))}
                   {messages.length <= 1 ? (
